@@ -1,3 +1,5 @@
-from django.db import models
+"""Modelos reservados para la siguiente etapa del proyecto.
 
-# Create your models here.
+La base visual se mantiene independiente del modelo de datos mientras se
+termina de validar el diseño definitivo.
+"""
