@@ -1,0 +1,71 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RG Beauty · Tu momento de cuidado</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'website/css/styles.css' %}">
+</head>
+<body>
+  <main class="page-shell">
+    <div class="topline"><span>⌖</span> Agregar dirección en Copiapó</div>
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">Belleza cerca, sin esperar</span>
+        <h1>Tu momento de<br>cuidado, a un<br>toque.</h1>
+        <p>Busca, compara y reserva a los mejores profesionales de Copiapó en minutos.</p>
+        <form class="search" method="get">
+          <span>⌕</span>
+          <input name="q" placeholder="Busca un servicio, categoría o profesional">
+          <button aria-label="Buscar">›</button>
+        </form>
+      </div>
+      <div class="hero-image"></div>
+      <span class="sparkle">◇</span>
+    </section>
+
+    <section class="section-head">
+      <div><span class="eyebrow">Elige tu ritual</span><h2>¿Qué necesitas hoy?</h2></div>
+      <a href="#services">Ver todo <span>›</span></a>
+    </section>
+    <nav class="categories" aria-label="Categorías">
+      <a class="active" href="#services">✦ <span>Todo</span></a>
+      <a href="#services">◒ <span>Peluquería</span></a>
+      <a href="#services">◌ <span>Uñas</span></a>
+      <a href="#services">◉ <span>Faciales</span></a>
+      <a href="#services">◍ <span>Cejas</span></a>
+      <a href="#services">◉ <span>Pestañas</span></a>
+    </nav>
+
+    <section id="services">
+      <div class="section-head compact"><div><span class="eyebrow green">Disponibles ahora</span><h2>Cerca de ti</h2></div><button class="filter">⌯ Filtrar</button></div>
+      <div class="service-grid">
+        <article class="card">
+          <div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=700&q=80')">
+            <span class="badge">Más elegido</span>
+          </div>
+          <div class="card-body">
+            <div class="card-meta"><span>Faciales</span><span>★ 4.8 (24)</span></div>
+            <h3>Facial hidratación profunda</h3><p>RG Beauty Spa · 60 min</p>
+            <div class="card-info"><span>◷ Hoy, 12:30</span><span>0,5 km</span></div>
+            <div class="card-bottom"><span>Desde <strong>$32.000</strong></span><a href="#">Inicia sesión</a></div>
+          </div>
+        </article>
+        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1562322140-8baeececf3df?w=700&q=80')"><span class="badge">Disponible ahora</span></div><div class="card-body"><div class="card-meta"><span>Peluquería</span><span>★ 4.8 (16)</span></div><h3>Corte y brushing</h3><p>Marena Studio · 90 min</p><div class="card-info"><span>◷ Hoy, 13:15</span><span>0,9 km</span></div><div class="card-bottom"><span>Desde <strong>$28.000</strong></span><a href="#">Inicia sesión</a></div></div></article>
+        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=700&q=80')"><span class="badge">20% dto.</span></div><div class="card-body"><div class="card-meta"><span>Uñas</span><span>★ 4.8 (12)</span></div><h3>Manicure permanente</h3><p>Casa Lila · 60 min</p><div class="card-info"><span>◷ Hoy, 14:00</span><span>1,2 km</span></div><div class="card-bottom"><span>Desde <strong>$18.000</strong></span><a href="#">Inicia sesión</a></div></div></article>
+        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1583001931096-959e9a1a6223?w=700&q=80')"><span class="badge">Mejor evaluado</span></div><div class="card-body"><div class="card-meta"><span>Cejas</span><span>★ 4.9 (18)</span></div><h3>Lifting de pestañas</h3><p>Blink Atelier · 60 min</p><div class="card-info"><span>◷ Hoy, 15:30</span><span>1 km</span></div><div class="card-bottom"><span>Desde <strong>$26.000</strong></span><a href="#">Inicia sesión</a></div></div></article>
+        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=700&q=80')"><span class="badge">Nuevo</span></div><div class="card-body"><div class="card-meta"><span>Pestañas</span><span>★ 4.8 (10)</span></div><h3>Extensiones clásicas</h3><p>Lash Room · 90 min</p><div class="card-info"><span>◷ Hoy, 16:00</span><span>1,1 km</span></div><div class="card-bottom"><span>Desde <strong>$22.000</strong></span><a href="#">Inicia sesión</a></div></div></article>
+      </div>
+    </section>
+
+    <section class="provider-cta">
+      <div class="provider-photo"></div>
+      <div><span class="eyebrow light">Para profesionales</span><h2>Haz crecer tu negocio con<br>RG Beauty.</h2><p>Conecta tus servicios con nuevos clientes y gestiona tus reservas desde una plataforma pensada para profesionales de la belleza.</p><a class="cta-button" href="#">Quiero ofrecer mis servicios</a></div>
+    </section>
+  </main>
+</body>
+</html>
