@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'website'
 ]
 
 MIDDLEWARE = [
@@ -75,7 +76,7 @@ WSGI_APPLICATION = 'gestion_citas_rgbeauty.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'eva3_basedatos',
+        'NAME': 'gestion_rgbeauty',
         'USER': 'root',
         'PASSWORD': '1527921Root',
         'HOST': 'localhost',
