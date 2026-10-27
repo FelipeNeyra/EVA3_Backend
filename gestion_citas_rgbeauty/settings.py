@@ -74,11 +74,12 @@ WSGI_APPLICATION = 'gestion_citas_rgbeauty.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+"""
 if os.environ.get('DB_ENGINE', 'sqlite').lower() == 'mysql':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.environ.get('DB_NAME', 'eva3_basedatos'),
+            'NAME': os.environ.get('DB_NAME', 'rg_beauty_gestion'),
             'USER': os.environ.get('DB_USER', 'root'),
             'PASSWORD': os.environ.get('DB_PASSWORD', ''),
             'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
@@ -92,7 +93,17 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-
+"""
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'rg_beauty_gestion',
+        'USER': 'root',
+        'PASSWORD': '1527921Root',
+        'HOST': 'localhost',
+        'PORT': '3306',
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
@@ -140,3 +151,6 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+# Variable para especifícar la Redirección después del login
+LOGIN_REDIRECT_URL = 'home'

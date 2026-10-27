@@ -17,8 +17,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from website.views import home
+from website import views as vistas
+#Librería de Vistas de Autenticación
+from django.contrib.auth import views as auth_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name='home'),
+    path('registro/', vistas.vista_registro, name='registro'),
+    path('login/', auth_views.LoginView.as_view(template_name='website/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
+    path('home/solicitudes', vistas.vista_solicitud_prestadores, name='solicitud_prestador'),
 ]

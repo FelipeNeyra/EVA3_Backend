@@ -1,36 +1,58 @@
 from django.db import models
-
+from django.conf import settings
 
 class Cliente(models.Model):
-    idcliente = models.IntegerField(db_column='idCliente', primary_key=True)
-    nombre = models.CharField(max_length=45)
-    correo = models.CharField(max_length=45)
-    contrasenia = models.CharField(max_length=10)
+    idcliente = models.AutoField(db_column='idCliente', primary_key=True)
+    nombre = models.CharField(max_length=45, null=True, blank=True)
+    correo = models.EmailField(
+        max_length=254,
+        unique=True,
+        null=True,
+        blank=True,
+    )
     direccion_domicilio = models.CharField(max_length=45)
     telefono = models.CharField(max_length=12)
-    nivel_acceso = models.CharField(max_length=10)
+    nivel_acceso = models.CharField(
+        max_length=10,
+        default='cliente'
+    )
+
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='perfil_cliente',
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
-        return self.nombre
+        return self.nombre or self.correo or f'Cliente {self.pk}'
 
     class Meta:
         db_table = 'cliente'
 
 
 class Prestador(models.Model):
-    idprestador = models.IntegerField(db_column='idPrestador', primary_key=True)
-    nombre = models.CharField(max_length=45)
-    correo = models.CharField(max_length=45)
-    contrasena = models.CharField(max_length=10)
+    idprestador = models.AutoField(db_column='idPrestador', primary_key=True)
     especialidad = models.CharField(max_length=45)
-    telefono = models.CharField(max_length=12)
-    id_certificacion_sanitaria = models.CharField(max_length=45)
-    estado_aprobacion = models.CharField(max_length=45)
+    id_certificacion_sanitaria = models.CharField(db_column='idCertificacion_Sanitaria', max_length=45)
     radio_cobertura = models.CharField(max_length=100)
-    nivel_acceso = models.CharField(max_length=10)
+    estado_aprobacion = models.BooleanField(default=False)
+    nivel_acceso = models.CharField(
+            max_length=10,
+            default='prestador'
+        )
+
+    usuario = models.OneToOneField(
+            settings.AUTH_USER_MODEL,
+            on_delete=models.CASCADE,
+            related_name='perfil_prestador',
+            null=True,
+            blank=True,
+        )
 
     def __str__(self):
-        return self.nombre
+        return f'Prestador {self.pk}'
 
     class Meta:
         db_table = 'prestador'
@@ -42,7 +64,7 @@ class Administrador(models.Model):
         primary_key=True)
     nombre = models.CharField(max_length=45)
     correo = models.CharField(max_length=45)
-    contrasena = models.CharField(max_length=10)
+    contrasenia = models.CharField(max_length=10)
     telefono = models.CharField(max_length=12)
     nivel_acceso = models.CharField(max_length=10)
 

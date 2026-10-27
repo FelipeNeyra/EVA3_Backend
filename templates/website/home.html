@@ -12,7 +12,45 @@
 </head>
 <body>
   <main class="page-shell">
-    <div class="topline"><span>⌖</span> Agregar dirección en Copiapó</div>
+    {% if user.is_authenticated %}
+      <h1>
+        Bienvenido {{ user.username }}
+      </h2>
+      <p>
+        Para Cerrar su sesión, presione el botón
+        <form method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit">Cerrar Sesión</button>
+        </form>
+      </p>
+      <p>
+        Para postular como prestador, ingrese aquí
+        <form method="post" action="{% url 'solicitud_prestador' %}">
+              {% csrf_token %}
+              <button type="submit">Envíar Solicitud</button>
+        </form>
+        {% if messages %}
+          <ul>
+              {% for message in messages %}
+              <li class="{{ message.tags }}">{{ message }}</li>
+              {% endfor %}
+          </ul>
+        {% endif %}
+      </p>
+
+      <div class="topline"><span>⌖</span> {{ user.perfil_cliente.direccion_domicilio }}</div>
+    {% else %}
+      <p>
+        Para ingresar como usuario, vaya aquí <a href="{% url 'login' %}">Iniciar Sesión</a>
+      </p>
+
+      <p>
+        ¿Desea registrarse?, vaya aquí <a href="{% url 'registro' %}">Registrarme</a>
+      </p>
+
+      <div class="topline"><span>⌖</span> Agregar dirección en Copiapó</div>
+    {% endif %}
+
     <section class="hero">
       <div class="hero-copy">
         <span class="eyebrow">Belleza cerca, sin esperar</span>
@@ -52,13 +90,13 @@
             <div class="card-meta"><span>Faciales</span><span>★ 4.8 (24)</span></div>
             <h3>Facial hidratación profunda</h3><p>RG Beauty Spa · 60 min</p>
             <div class="card-info"><span>◷ Hoy, 12:30</span><span>0,5 km</span></div>
-            <div class="card-bottom"><span>Desde <strong>$32.000</strong></span><a href="#">Inicia sesión</a></div>
+            <div class="card-bottom"><span>Desde <strong>$32.000</strong></span><a href="{% url 'login' %}">Inicia sesión</a></div>
           </div>
         </article>
-        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1562322140-8baeececf3df?w=700&q=80')"><span class="badge">Disponible ahora</span></div><div class="card-body"><div class="card-meta"><span>Peluquería</span><span>★ 4.8 (16)</span></div><h3>Corte y brushing</h3><p>Marena Studio · 90 min</p><div class="card-info"><span>◷ Hoy, 13:15</span><span>0,9 km</span></div><div class="card-bottom"><span>Desde <strong>$28.000</strong></span><a href="#">Inicia sesión</a></div></div></article>
-        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=700&q=80')"><span class="badge">20% dto.</span></div><div class="card-body"><div class="card-meta"><span>Uñas</span><span>★ 4.8 (12)</span></div><h3>Manicure permanente</h3><p>Casa Lila · 60 min</p><div class="card-info"><span>◷ Hoy, 14:00</span><span>1,2 km</span></div><div class="card-bottom"><span>Desde <strong>$18.000</strong></span><a href="#">Inicia sesión</a></div></div></article>
-        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1583001931096-959e9a1a6223?w=700&q=80')"><span class="badge">Mejor evaluado</span></div><div class="card-body"><div class="card-meta"><span>Cejas</span><span>★ 4.9 (18)</span></div><h3>Lifting de pestañas</h3><p>Blink Atelier · 60 min</p><div class="card-info"><span>◷ Hoy, 15:30</span><span>1 km</span></div><div class="card-bottom"><span>Desde <strong>$26.000</strong></span><a href="#">Inicia sesión</a></div></div></article>
-        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=700&q=80')"><span class="badge">Nuevo</span></div><div class="card-body"><div class="card-meta"><span>Pestañas</span><span>★ 4.8 (10)</span></div><h3>Extensiones clásicas</h3><p>Lash Room · 90 min</p><div class="card-info"><span>◷ Hoy, 16:00</span><span>1,1 km</span></div><div class="card-bottom"><span>Desde <strong>$22.000</strong></span><a href="#">Inicia sesión</a></div></div></article>
+        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1562322140-8baeececf3df?w=700&q=80')"><span class="badge">Disponible ahora</span></div><div class="card-body"><div class="card-meta"><span>Peluquería</span><span>★ 4.8 (16)</span></div><h3>Corte y brushing</h3><p>Marena Studio · 90 min</p><div class="card-info"><span>◷ Hoy, 13:15</span><span>0,9 km</span></div><div class="card-bottom"><span>Desde <strong>$28.000</strong></span><a href="{% url 'login' %}">Inicia sesión</a></div></div></article>
+        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=700&q=80')"><span class="badge">20% dto.</span></div><div class="card-body"><div class="card-meta"><span>Uñas</span><span>★ 4.8 (12)</span></div><h3>Manicure permanente</h3><p>Casa Lila · 60 min</p><div class="card-info"><span>◷ Hoy, 14:00</span><span>1,2 km</span></div><div class="card-bottom"><span>Desde <strong>$18.000</strong></span><a href="{% url 'login' %}">Inicia sesión</a></div></div></article>
+        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1583001931096-959e9a1a6223?w=700&q=80')"><span class="badge">Mejor evaluado</span></div><div class="card-body"><div class="card-meta"><span>Cejas</span><span>★ 4.9 (18)</span></div><h3>Lifting de pestañas</h3><p>Blink Atelier · 60 min</p><div class="card-info"><span>◷ Hoy, 15:30</span><span>1 km</span></div><div class="card-bottom"><span>Desde <strong>$26.000</strong></span><a href="{% url 'login' %}">Inicia sesión</a></div></div></article>
+        <article class="card"><div class="card-image" style="background-image:url('https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=700&q=80')"><span class="badge">Nuevo</span></div><div class="card-body"><div class="card-meta"><span>Pestañas</span><span>★ 4.8 (10)</span></div><h3>Extensiones clásicas</h3><p>Lash Room · 90 min</p><div class="card-info"><span>◷ Hoy, 16:00</span><span>1,1 km</span></div><div class="card-bottom"><span>Desde <strong>$22.000</strong></span><a href="{% url 'login' %}">Inicia sesión</a></div></div></article>
       </div>
     </section>
 
