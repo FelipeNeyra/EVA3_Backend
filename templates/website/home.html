@@ -44,7 +44,8 @@
       </p>
       <p>
         Para ver y/o editar su información, ingrese aquí
-        <form method="get" action="{% url 'datos_usuario' %}">
+        <form method="post" action="{% url 'datos_usuario' %}">
+              {% csrf_token %}
               <button type="submit">Datos de Cuenta</button>
         </form>
       </p>

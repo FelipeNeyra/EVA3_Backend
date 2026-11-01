@@ -1,4 +1,4 @@
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -11,7 +11,6 @@ from .forms import (
 from .models import Prestador
 
 from django.contrib import messages
-from django.core.paginator import Paginator
 
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib.messages.views import SuccessMessageMixin
@@ -129,15 +128,31 @@ def vista_solicitud_prestadores(request):
 # --------- SECCIÓN DE ADMINISTRADORES -------
 @login_required
 def vista_administrador(request):
-    solicitudes = Prestador.objects.all()
-    solicitudes.order_by('estado_aprobacion')
-
-    paginator = Paginator(solicitudes, 5)
-    page_obj = paginator.get_page(request.GET.get('page'))
-
-    params = request.GET.copy()
-    params.pop('page', None)
-
     return render(request, 'website/vista_admin.html', {
-        'page_obj': page_obj, 
-        'querystring': params.urlencode()})
+        'solicitudes_espera': Prestador.objects.filter(
+            estado_aprobacion__isnull=True
+        ).select_related('usuario'),
+        'solicitudes_aprobadas': Prestador.objects.filter(
+            estado_aprobacion=True
+        ).select_related('usuario'),
+        'solicitudes_rechazadas': Prestador.objects.filter(
+            estado_aprobacion=False
+        ).select_related('usuario'),
+    })
+
+@login_required
+def vista_aprobar_rechazar_solicitud(request, pk):
+    if request.method != 'POST':
+        return redirect('vista_administrador')
+
+    estado = request.POST.get('estado')
+    if estado not in {'True', 'False'}:
+        messages.error(request, 'El estado de la solicitud no es válido.')
+        return redirect('vista_administrador')
+
+    solicitud = get_object_or_404(Prestador, pk=pk)
+    solicitud.estado_aprobacion = estado == 'True'
+    solicitud.save(update_fields=['estado_aprobacion'])
+
+    messages.success(request, 'El estado de la solicitud fue actualizado.')
+    return redirect('vista_administrador')

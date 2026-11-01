@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,34 +17,52 @@
         </form>
     </p>
     <main>
-        <p {{ page_obj.paginator.num_pages }}>Listado de Solicitudes</p>
-        {% for solicitud in page_obj%}
-            Solicitud de {{ solicitud.usuario.username }} ({{ solicitud.usuario.email }})
+        <p>Listado de Solicitudes</p>
+        {% if messages %}
             <ul>
-                <li>Especialidad: {{ solicitud.especialidad }}</li>
-                <li>N° de Certificación Sanitaria: {{ solicitud.numCertificacion_sanitaria }}</li>
-                <li>Estado de aprobación: {% if solicitud.estado_aprobacion == Null %}En evaluación{% endif %}</li>
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
             </ul>
+        {% endif %}
+        <h2>Solicitudes en espera</h2>
+        {% for solicitud in solicitudes_espera %}
+                Solicitud de {{ solicitud.usuario.username }} ({{ solicitud.usuario.email }})
+                <ul>
+                    <li>Especialidad: {{ solicitud.especialidad }}</li>
+                    <li>N° de Certificación Sanitaria: {{ solicitud.numCertificacion_sanitaria }}</li>
+                    <li>Estado de aprobación: En evaluación</li>
+                    <form method="post" action="{% url 'estado_solicitud' solicitud.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" name="estado" value="True">Aprobar</button>
+                        <button type="submit" name="estado" value="False">Rechazar</button>
+                    </form>
+                </ul>
         {% empty %}
-            <a>No se encontraron solicitudes</a>
+            <p>No se encontraron solicitudes.</p>
         {% endfor %}
 
+        <h2>Solicitudes aprobadas</h2>
+        {% for solicitud in solicitudes_aprobadas %}
+                Solicitud de {{ solicitud.usuario.username }} ({{ solicitud.usuario.email }})
+                <ul>
+                    <li>Especialidad: {{ solicitud.especialidad }}</li>
+                    <li>N° de Certificación Sanitaria: {{ solicitud.numCertificacion_sanitaria }}</li>
+                </ul>
+        {% empty %}
+            <p>No se encontraron solicitudes.</p>
+        {% endfor %}
 
-        {% if page_obj.paginator.num_pages > 1 %}
-            <nav class="paginacion"> 
-                {% if page_obj.has_previous %}
-                    <a href="?{% if querystring %}{{ querystring}}%amp;{% endif %}page={{
-                        page_obj.previous_page_number
-                    }}">Anterior</a>
-                {% endif %}
-                {% if page_obj.has_next %}
-                    <a href="?{% if querystring %}{{ querystring}}%amp;{% endif %}page={{
-                        page_obj.next_page_number
-                    }}">Siguiente</a>
-                {% endif %}
-            </nav>
-            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
-        {% endif %}
+        <h2>Solicitudes rechazadas</h2>
+        {% for solicitud in solicitudes_rechazadas %}
+                Solicitud de {{ solicitud.usuario.username }} ({{ solicitud.usuario.email }})
+                <ul>
+                    <li>Especialidad: {{ solicitud.especialidad }}</li>
+                    <li>N° de Certificación Sanitaria: {{ solicitud.numCertificacion_sanitaria }}</li>
+                </ul>
+        {% empty %}
+            <p>No se encontraron solicitudes.</p>
+        {% endfor %}
     </main>
 </body>
 </html>
