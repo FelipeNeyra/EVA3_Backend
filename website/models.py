@@ -35,9 +35,9 @@ class Cliente(models.Model):
 class Prestador(models.Model):
     idprestador = models.AutoField(db_column='idPrestador', primary_key=True)
     especialidad = models.CharField(max_length=45)
-    id_certificacion_sanitaria = models.CharField(db_column='idCertificacion_Sanitaria', max_length=45)
+    numCertificacion_sanitaria = models.CharField(db_column='idCertificacion_Sanitaria', max_length=45)
     radio_cobertura = models.CharField(max_length=100)
-    estado_aprobacion = models.BooleanField(default=False)
+    estado_aprobacion = models.BooleanField(null=True, blank=True)
     nivel_acceso = models.CharField(
             max_length=10,
             default='prestador'
@@ -62,14 +62,21 @@ class Administrador(models.Model):
     idadministrador = models.IntegerField(
         db_column='idAdministrador',
         primary_key=True)
-    nombre = models.CharField(max_length=45)
-    correo = models.CharField(max_length=45)
-    contrasenia = models.CharField(max_length=10)
-    telefono = models.CharField(max_length=12)
-    nivel_acceso = models.CharField(max_length=10)
+    nivel_acceso = models.CharField(
+                max_length=13,
+                default='administrador'
+            )
+
+    usuario = models.OneToOneField(
+                settings.AUTH_USER_MODEL,
+                on_delete=models.CASCADE,
+                related_name='perfil_administrador',
+                null=True,
+                blank=True,
+            )
 
     def __str__(self):
-        return self.nombre
+            return f'Administrador {self.pk}'
 
     class Meta:
         db_table = 'administrador'

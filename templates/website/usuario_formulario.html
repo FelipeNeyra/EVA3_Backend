@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro</title>
+</head>
+<body>
+    <form method="post">
+        {% csrf_token %}
+        {{ user_form.as_p }}
+        {{ cliente_form.as_p }}
+        {% if es_registro == True %}
+            <button type="submit">Registrarme</button>
+        {% else %}
+            <button type="submit">Actualizar Datos</button>
+        {% endif %}
+    </form>
+    {% if es_registro == True %}
+        <p>
+            ¿Ya tienes una cuenta? <a href="{%url 'login'%}">Iniciar sesión</a>
+        </p>
+    {% else %}
+        <p>
+            Si desea cambiar su contraseña, ingrese aquí <a href="{% url 'password_change' %}">Cambiar Contraseña</a>
+        </p>
+        <p>
+            Si no desea modificar sus datos, puede volver al menú desde aquí <a href="{% url 'home' %}">Volver al Menú</a>
+        </p>
+    {% endif %}
+</body>
+</html>

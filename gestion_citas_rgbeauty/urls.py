@@ -20,12 +20,30 @@ from website.views import home
 from website import views as vistas
 #Librería de Vistas de Autenticación
 from django.contrib.auth import views as auth_views
+from website.forms import CorreoAuthenticationForm
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name='home'),
     path('registro/', vistas.vista_registro, name='registro'),
-    path('login/', auth_views.LoginView.as_view(template_name='website/login.html'), name='login'),
+    path(
+        'login/',
+        auth_views.LoginView.as_view(
+            template_name='website/login.html',
+            authentication_form=CorreoAuthenticationForm,
+        ),
+        name='login',
+    ),
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
+    path('cambiar_contraseña/', auth_views.PasswordChangeView.as_view(template_name='website/cuenta/cambiar_contraseña.html'), name='password_change'),
+    path(
+        'cambiar_contraseña/hecho', 
+        auth_views.PasswordChangeDoneView.as_view(
+            template_name='website/cuenta/cambiar_contraseña_hecho.html'
+        ), 
+        name='password_change_done'
+    ),
     path('home/solicitudes', vistas.vista_solicitud_prestadores, name='solicitud_prestador'),
+    path('home/datos_cuenta', vistas.vista_editar_informacion_usuario, name='datos_usuario'),
+    path('administración/', vistas.vista_administrador, name='vista_administrador'),
 ]

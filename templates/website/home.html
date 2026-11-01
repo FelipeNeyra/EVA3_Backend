@@ -4,6 +4,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% if user.is_authenticated %}
+    {% if user.perfil_administrador.nivel_acceso == "administrador" %}
+      <meta http-equiv="refresh" content="0;url={% url 'vista_administrador' %}">
+    {% endif %}
+  {% endif %}
   <title>RG Beauty · Tu momento de cuidado</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +19,7 @@
   <main class="page-shell">
     {% if user.is_authenticated %}
       <h1>
-        Bienvenido {{ user.username }}
+        Bienvenid@ {{ user.username }}
       </h2>
       <p>
         Para Cerrar su sesión, presione el botón
@@ -36,6 +41,12 @@
               {% endfor %}
           </ul>
         {% endif %}
+      </p>
+      <p>
+        Para ver y/o editar su información, ingrese aquí
+        <form method="get" action="{% url 'datos_usuario' %}">
+              <button type="submit">Datos de Cuenta</button>
+        </form>
       </p>
 
       <div class="topline"><span>⌖</span> {{ user.perfil_cliente.direccion_domicilio }}</div>
