@@ -8,7 +8,7 @@ from .forms import (
     RegistroClienteForm,
     RegistroPrestadorForm,
 )
-from .models import Prestador
+from .models import Prestador, Reserva
 
 from django.contrib import messages
 
@@ -16,9 +16,90 @@ from django.contrib.auth.views import PasswordChangeView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse_lazy
 
-#Vista Principal
+SERVICE_CATALOG = [
+    {
+        'category': 'Faciales', 'name': 'Facial hidratación profunda',
+        'provider': 'RG Beauty Spa', 'duration': '60 min', 'price': '$32.000',
+        'time': 'Hoy, 12:30', 'distance': '0,5 km', 'rating': '4.8 (24)',
+        'badge': 'Más elegido',
+        'image': 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=700&q=80',
+    },
+    {
+        'category': 'Peluquería', 'name': 'Corte y brushing',
+        'provider': 'Marena Studio', 'duration': '90 min', 'price': '$28.000',
+        'time': 'Hoy, 13:15', 'distance': '0,9 km', 'rating': '4.8 (16)',
+        'badge': 'Disponible ahora',
+        'image': 'https://images.unsplash.com/photo-1562322140-8baeececf3df?w=700&q=80',
+    },
+    {
+        'category': 'Uñas', 'name': 'Manicure permanente',
+        'provider': 'Casa Lila', 'duration': '60 min', 'price': '$18.000',
+        'time': 'Hoy, 14:00', 'distance': '1,2 km', 'rating': '4.8 (12)',
+        'badge': '20% dto.',
+        'image': 'https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=700&q=80',
+    },
+    {
+        'category': 'Cejas', 'name': 'Lifting de pestañas',
+        'provider': 'Blink Atelier', 'duration': '60 min', 'price': '$26.000',
+        'time': 'Hoy, 15:30', 'distance': '1 km', 'rating': '4.9 (18)',
+        'badge': 'Mejor evaluado',
+        'image': 'https://images.unsplash.com/photo-1583001931096-959e9a1a6223?w=700&q=80',
+    },
+]
+
+CATEGORIES = [
+    ('todo', '✦ Todo'), ('peluqueria', '◒ Peluquería'), ('unas', '◌ Uñas'),
+    ('faciales', '◉ Faciales'), ('cejas', '◍ Cejas'), ('pestanas', '◉ Pestañas'),
+]
+
+
+def _filtered_services(request):
+    query = request.GET.get('q', '').strip().lower()
+    category = request.GET.get('categoria', '').strip().lower()
+    services = SERVICE_CATALOG
+    if category and category != 'todo':
+        category_names = {
+            'peluqueria': 'peluquería', 'unas': 'uñas', 'faciales': 'faciales',
+            'cejas': 'cejas', 'pestanas': 'pestañas',
+        }
+        services = [item for item in services if item['category'].lower() == category_names.get(category, category)]
+    if query:
+        services = [
+            item for item in services
+            if query in ' '.join((item['category'], item['name'], item['provider'])).lower()
+        ]
+    return services
+
+
+# Vista principal
 def home(request):
-    return render(request, 'website/home.html')
+    return render(request, 'website/home.html', {
+        'services': _filtered_services(request),
+        'categories': CATEGORIES,
+    })
+
+
+def explorar(request):
+    return render(request, 'website/explorar.html', {
+        'services': _filtered_services(request),
+        'categories': CATEGORIES,
+    })
+
+
+@login_required
+def reservas(request):
+    cliente = getattr(request.user, 'perfil_cliente', None)
+    user_reservas = Reserva.objects.filter(
+        cliente_idcliente=cliente
+    ).prefetch_related('servicios') if cliente else Reserva.objects.none()
+    return render(request, 'website/reservas.html', {'reservas': user_reservas})
+
+
+@login_required
+def favoritos(request):
+    return render(request, 'website/favoritos.html', {
+        'services': _filtered_services(request),
+    })
 
 # --------- REGISTRO -------
 #Vista de Formulario de Registro (Usuario_Cliente)

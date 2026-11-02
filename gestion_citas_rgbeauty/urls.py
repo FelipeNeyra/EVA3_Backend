@@ -25,6 +25,9 @@ from website.forms import CorreoAuthenticationForm
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name='home'),
+    path('explorar/', vistas.explorar, name='explorar'),
+    path('reservas/', vistas.reservas, name='reservas'),
+    path('favoritos/', vistas.favoritos, name='favoritos'),
 
     #Registro y Login
     path('registro/', vistas.vista_registro, name='registro'),

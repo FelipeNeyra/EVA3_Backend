@@ -1,0 +1,10 @@
+{% extends 'website/base.html' %}
+{% block title %}Mis reservas · RG Beauty{% endblock %}
+{% block content %}
+<section class="section-head"><div><span class="eyebrow">Tu agenda</span><h1>Mis reservas</h1></div><a class="nav-cta" href="{% url 'explorar' %}">Nueva reserva</a></section>
+<div class="admin-card">
+  {% for reserva in reservas %}
+    <article class="request"><strong>Reserva #{{ reserva.idreserva }}</strong><p>{{ reserva.fecha }} · {{ reserva.hora_bloque|time:"H:i" }} · {{ reserva.direccion_visita }}</p><small>Estado: {{ reserva.estado }}</small></article>
+  {% empty %}<p class="empty">Aún no tienes reservas. <a href="{% url 'explorar' %}">Explora servicios</a> para comenzar.</p>{% endfor %}
+</div>
+{% endblock %}

@@ -1,15 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inicio de Sesión</title>
-</head>
-<body>
-    <form method="post">
-        {% csrf_token %}
-        {{form.as_p}}
-        <button type="submit">Ingresar</button>
-    </form>
-</body>
-</html>
+{% extends 'website/base.html' %}
+{% block title %}Iniciar sesión · RG Beauty{% endblock %}
+{% block content %}
+<main class="form-page"><div class="form-card">
+  <span class="eyebrow">Bienvenido de vuelta</span><h1>Inicia sesión</h1>
+  <p>Ingresa para administrar tus datos y conectar con profesionales de belleza.</p>
+  <form method="post" class="styled-form">{% csrf_token %}{{ form.as_p }}<button class="primary-button" type="submit">Ingresar</button></form>
+  <p class="form-links">¿Aún no tienes cuenta? <a href="{% url 'registro' %}">Crear una cuenta</a></p>
+</div></main>
+{% endblock %}

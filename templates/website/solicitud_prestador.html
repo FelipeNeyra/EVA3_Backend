@@ -1,18 +1,9 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solicitud para Prestadores</title>
-</head>
-<body>
-    <form method="post">
-        {% csrf_token %}
-        {{ prestador_form.as_p }}
-        <button type="submit">Enviar Solicitud</button>
-    </form>
-    <p>
-        ¿Ya estas habilitado como prestador? <a href="{%url 'login'%}">Iniciar Sesión</a>
-    </p>
-</body>
-</html>
+{% extends 'website/base.html' %}
+{% block title %}Ofrecer servicios · RG Beauty{% endblock %}
+{% block content %}
+<main class="form-page"><div class="form-card">
+  <span class="eyebrow light">Para profesionales</span><h1>Ofrece tus servicios</h1>
+  <p>Completa tus datos y nuestro equipo revisará tu solicitud.</p>
+  <form method="post" class="styled-form">{% csrf_token %}{{ prestador_form.as_p }}<button class="primary-button" type="submit">Enviar solicitud</button></form>
+</div></main>
+{% endblock %}

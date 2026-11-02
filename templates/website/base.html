@@ -1,0 +1,47 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}RG Beauty{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'website/css/styles.css' %}">
+</head>
+<body>
+  <main class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="{% url 'home' %}">
+        <span class="brand-mark">RG</span>
+        <span class="brand-name">RG <strong>Beauty</strong></span>
+      </a>
+      <nav class="main-nav" aria-label="Navegación principal">
+        <a href="{% url 'explorar' %}">Explorar</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'reservas' %}">Mis reservas</a>
+          <a href="{% url 'favoritos' %}">Favoritos</a>
+          <a href="{% url 'datos_usuario' %}">Mi cuenta</a>
+          <form class="inline-form" method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="nav-button" type="submit">Salir</button>
+          </form>
+        {% else %}
+          <a href="{% url 'login' %}">Ingresar</a>
+          <a class="nav-cta" href="{% url 'registro' %}">Crear cuenta</a>
+        {% endif %}
+      </nav>
+    </header>
+
+    {% if messages %}
+      <div class="messages" role="status">
+        {% for message in messages %}
+          <div class="message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

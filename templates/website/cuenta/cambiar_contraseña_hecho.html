@@ -1,13 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cambio de Contraseña</title>
-</head>
-<body>
-    <h2>¡Contraseña modificada con éxito!</h2>
-    <p>Tu contraseña ha sido actualizada correctamente.</p>
-    <a href="{% url 'home' %}">Volver al inicio</a>
-</body>
-</html>
+{% extends 'website/base.html' %}
+{% block title %}Contraseña actualizada · RG Beauty{% endblock %}
+{% block content %}
+<main class="form-page"><div class="form-card"><span class="eyebrow green">Todo listo</span><h1>Contraseña actualizada</h1><p>Tu contraseña fue modificada correctamente.</p><a class="cta-button" href="{% url 'home' %}">Volver al inicio</a></div></main>
+{% endblock %}
