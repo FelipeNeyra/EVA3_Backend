@@ -8,13 +8,14 @@ from .forms import (
     RegistroClienteForm,
     RegistroPrestadorForm,
 )
-from .models import Prestador, Reserva
+from .models import Prestador, Reserva, Servicio
 
 from django.contrib import messages
 
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse_lazy
+from unicodedata import normalize as unicode_normalize
 
 SERVICE_CATALOG = [
     {
@@ -56,13 +57,36 @@ CATEGORIES = [
 def _filtered_services(request):
     query = request.GET.get('q', '').strip().lower()
     category = request.GET.get('categoria', '').strip().lower()
-    services = SERVICE_CATALOG
-    if category and category != 'todo':
-        category_names = {
-            'peluqueria': 'peluquería', 'unas': 'uñas', 'faciales': 'faciales',
-            'cejas': 'cejas', 'pestanas': 'pestañas',
+    database_services = Servicio.objects.select_related(
+        'prestador_idprestador__usuario'
+    ).order_by('idservicio')
+    services = [
+        {
+            'category': service.prestador_idprestador.especialidad.split(' y ')[0],
+            'category_keys': _service_category_keys(service),
+            'name': service.nombre,
+            'provider': service.prestador_idprestador.usuario.get_full_name()
+            or service.prestador_idprestador.usuario.username,
+            'duration': f'{service.duracion} min',
+            'price': f'${service.precio_base:,.0f}'.replace(',', '.'),
+            'time': 'Disponible hoy',
+            'distance': service.prestador_idprestador.radio_cobertura,
+            'rating': '5.0',
+            'badge': 'Disponible ahora',
+            'image': SERVICE_CATALOG[index % len(SERVICE_CATALOG)]['image'],
         }
-        services = [item for item in services if item['category'].lower() == category_names.get(category, category)]
+        for index, service in enumerate(database_services)
+    ]
+    if not services:
+        services = [
+            {
+                **item,
+                'category_keys': _catalog_category_keys(item['category']),
+            }
+            for item in SERVICE_CATALOG
+        ]
+    if category and category != 'todo':
+        services = [item for item in services if category in item['category_keys']]
     if query:
         services = [
             item for item in services
@@ -71,16 +95,38 @@ def _filtered_services(request):
     return services
 
 
+def _service_category_keys(service):
+    value = unicode_normalize(
+        'NFKD',
+        f'{service.prestador_idprestador.especialidad} {service.nombre}',
+    ).encode('ascii', 'ignore').decode().lower()
+    terms = {
+        'peluqueria': ('peluquer', 'corte', 'brushing'),
+        'unas': ('una', 'manicure', 'pedicure'),
+        'faciales': ('facial', 'limpieza', 'masaje facial'),
+        'cejas': ('ceja',),
+        'pestanas': ('pestana', 'lifting'),
+    }
+    return [
+        category for category, keywords in terms.items()
+        if any(keyword in value for keyword in keywords)
+    ]
+
+
+def _catalog_category_keys(category):
+    value = unicode_normalize('NFKD', category).encode('ascii', 'ignore').decode().lower()
+    return {
+        'peluqueria': ['peluqueria'],
+        'unas': ['unas'],
+        'faciales': ['faciales'],
+        'cejas': ['cejas'],
+        'pestanas': ['pestanas'],
+    }.get(value, [])
+
+
 # Vista principal
 def home(request):
     return render(request, 'website/home.html', {
-        'services': _filtered_services(request),
-        'categories': CATEGORIES,
-    })
-
-
-def explorar(request):
-    return render(request, 'website/explorar.html', {
         'services': _filtered_services(request),
         'categories': CATEGORIES,
     })

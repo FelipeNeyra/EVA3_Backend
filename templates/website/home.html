@@ -6,7 +6,7 @@
     <span class="eyebrow">Belleza cerca, sin esperar</span>
     <h1>Tu momento de<br>cuidado, a un<br>toque.</h1>
     <p>Busca, compara y reserva a los mejores profesionales de Copiapó en minutos.</p>
-    <form class="search" method="get" action="{% url 'explorar' %}">
+    <form class="search" method="get" action="{% url 'home' %}">
       <span>⌕</span>
       <input name="q" placeholder="Busca un servicio, categoría o profesional" aria-label="Buscar servicios">
       <button aria-label="Buscar" type="submit">›</button>
@@ -18,19 +18,19 @@
 
 <section class="section-head">
   <div><span class="eyebrow">Elige tu ritual</span><h2>¿Qué necesitas hoy?</h2></div>
-  <a href="{% url 'explorar' %}">Ver todo <span>›</span></a>
+  <a href="#services">Ver todo <span>›</span></a>
 </section>
-<nav class="categories" aria-label="Categorías">
+<nav class="categories" aria-label="Categorías" id="service-categories">
   {% for category in categories %}
-    <a class="{% if forloop.first %}active{% endif %}" href="{% url 'explorar' %}?categoria={{ category.0 }}">{{ category.1 }}</a>
+    <button class="{% if forloop.first %}active{% endif %}" type="button" data-category="{{ category.0 }}">{{ category.1 }}</button>
   {% endfor %}
 </nav>
 
 <section id="services">
-  <div class="section-head compact"><div><span class="eyebrow green">Disponibles ahora</span><h2>Cerca de ti</h2></div><a class="filter" href="{% url 'explorar' %}">⌯ Filtrar</a></div>
+  <div class="section-head compact"><div><span class="eyebrow green">Disponibles ahora</span><h2>Cerca de ti</h2></div></div>
   <div class="service-grid">
     {% for service in services %}
-      <article class="card">
+      <article class="card" data-service-categories="{{ service.category_keys|join:',' }}">
         <div class="card-image" style="background-image:url('{{ service.image }}')"><span class="badge">{{ service.badge }}</span></div>
         <div class="card-body">
           <div class="card-meta"><span>{{ service.category }}</span><span>★ {{ service.rating }}</span></div>
@@ -42,6 +42,45 @@
     {% endfor %}
   </div>
 </section>
+
+<script>
+  (() => {
+    const categoryButtons = document.querySelectorAll('#service-categories button');
+    const serviceCards = document.querySelectorAll('#services .card');
+    const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    const filterServices = (button) => {
+      const selectedCategory = button.dataset.category;
+      categoryButtons.forEach((item) => {
+        item.classList.toggle('active', item === button);
+      });
+      serviceCards.forEach((card) => {
+        const cardCategories = (card.dataset.serviceCategories || card.dataset.serviceCategory || '').split(',');
+        const matches = selectedCategory === 'todo'
+          || cardCategories.includes(normalize(selectedCategory));
+        card.hidden = !matches;
+      });
+    };
+
+    categoryButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        filterServices(button);
+      });
+    });
+
+    const initialCategory = new URLSearchParams(window.location.search).get('categoria');
+    const initialButton = [...categoryButtons].find(
+      (button) => button.dataset.category === initialCategory,
+    );
+    if (initialButton) {
+      filterServices(initialButton);
+    } else {
+      serviceCards.forEach((card) => {
+        card.hidden = false;
+      });
+    }
+  })();
+</script>
 
 <section class="provider-cta">
   <div class="provider-photo"></div>
