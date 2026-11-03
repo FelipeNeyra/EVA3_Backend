@@ -29,6 +29,7 @@ def quick_booking(request):
         }
         name = provider.usuario.get_full_name() or provider.usuario.username
         professional = {
+            'service_id': service.idservicio,
             'name': name,
             'specialty': provider.especialidad,
             'service': service.nombre,

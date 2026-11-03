@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'website/css/styles.css' %}?v=20261103-3">
+  <link rel="stylesheet" href="{% static 'website/css/styles.css' %}?v=20261103-4">
   <style>
     .quick-booking-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgba(56, 35, 47, .6); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
     .quick-booking-backdrop[hidden] { display: none !important; }
@@ -20,18 +20,53 @@
     .quick-categories { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 23px; }
     .quick-category { border: 1px solid #e4dfe0; border-radius: 10px; background: #fff; color: #5d5055; padding: 10px 9px; text-align: left; font-size: 13px; }
     .quick-category.active { border-color: #e00069; background: #e00069; color: #fff; }
-    .quick-provider { display: flex; flex-direction: column; gap: 5px; width: 157px; border: 1px solid #e00069; border-radius: 15px; background: #fae5eb; padding: 16px 13px; margin-bottom: 22px; }
+    .quick-provider-list { display: flex; gap: 10px; flex-wrap: wrap; }
+    .quick-provider { display: flex; flex-direction: column; gap: 5px; width: 157px; border: 1px solid #e4dfe0; border-radius: 15px; background: #fff; padding: 16px 13px; margin-bottom: 22px; text-align: left; }
+    .quick-provider.selected { border-color: #e00069; background: #fae5eb; outline: 3px solid #e00069; outline-offset: 2px; }
+    .quick-provider:focus-visible { outline: 3px solid #38232f; outline-offset: 2px; }
     .quick-provider-badge { align-self: flex-start; border-radius: 12px; background: #a9dfa7; color: #365136; font-size: 7px; font-weight: 700; padding: 4px 8px; text-transform: uppercase; }
     .quick-provider span:not(.quick-provider-badge) { color: #a28f96; font-size: 10px; }
     .quick-provider b { font-size: 11px; }
     .quick-booking-note { border-radius: 13px; background: #c9e8c5; color: #6b7b68; font-size: 10px; line-height: 1.5; margin: 0 0 16px; padding: 12px; }
     .quick-booking-submit { display: block; border-radius: 23px; background: #e00069; color: #fff; padding: 13px; text-align: center; text-decoration: none; font-size: 13px; font-weight: 700; }
+    .booking-progress i.current { background: #e00069; }
+    .booking-step[hidden] { display: none !important; }
+    .booking-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .booking-fields label { display: flex; flex-direction: column; gap: 6px; color: #5d5055; font-size: 10px; font-weight: 700; }
+    .booking-fields label.full { grid-column: 1 / -1; }
+    .booking-fields input { border: 1px solid #e4dfe0; border-radius: 9px; padding: 11px; background: #fff; color: #38232f; }
+    .booking-notice { border-radius: 13px; background: #c9e8c5; color: #6b7b68; padding: 13px; font-size: 10px; line-height: 1.5; margin-bottom: 18px; }
+    .booking-notice small { display: block; margin-top: 5px; }
+    .booking-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .booking-actions > * { flex: 1; }
+    .booking-prev, .booking-cancel { border: 1px solid #ded5d8; border-radius: 22px; background: transparent; color: #5d5055; padding: 12px; }
+    .booking-summary { border-radius: 16px; background: #38232f; color: #fff; padding: 20px; }
+    .booking-summary > span, .booking-deposit > span { color: #c4edaf; font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; }
+    .booking-summary h3 { color: #fff; font: 500 23px "Playfair Display", serif; letter-spacing: 0; text-transform: none; }
+    .booking-summary p { color: #c7b9c1; display: flex; justify-content: space-between; border-top: 1px solid #ffffff22; padding-top: 8px; }
+    .booking-summary p b { color: #fff; }
+    .booking-deposit { border: 1px solid #e00069; border-radius: 14px; padding: 16px; margin-top: 16px; }
+    .booking-deposit strong { display: block; font: 500 28px "Playfair Display", serif; margin: 4px 0; }
+    .booking-deposit small { color: #a28f96; }
+    .booking-reject { display: block; border: 0; background: none; color: #a28f96; text-decoration: underline; margin: 14px auto 0; }
+    .booking-payment-failed { text-align: center; padding: 28px 8px 4px; }
+    .booking-failed-icon { display: grid; place-items: center; width: 70px; height: 70px; margin: 0 auto 15px; border-radius: 50%; background: #fae0e5; color: #e00000; font-size: 38px; }
+    .booking-payment-failed h3 { font: 500 25px "Playfair Display", serif; text-transform: none; letter-spacing: 0; }
+    .booking-payment-failed p { color: #a28f96; line-height: 1.5; }
+    .booking-confirmed-content { text-align: center; padding: 28px 8px 4px; }
+    .booking-confirmed-icon { display: grid; place-items: center; width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; background: #9cdda0; color: #38232f; font-size: 38px; }
+    .booking-confirmed-content h3 { font: 500 25px "Playfair Display", serif; margin: 0 0 10px; text-transform: none; letter-spacing: 0; }
+    .booking-confirmed-content p { color: #a28f96; line-height: 1.5; margin: 0 auto 18px; max-width: 390px; }
+    .booking-paid { border-radius: 13px; background: #fff; color: #a28f96; padding: 12px; margin-bottom: 20px; }
+    .booking-paid strong { color: #38232f; margin-left: 6px; }
     @media (max-width: 520px) {
       .quick-booking-backdrop { padding: 12px; }
       .quick-booking-modal { max-height: calc(100vh - 24px); padding: 18px 16px 20px; }
       .quick-booking-close { right: 16px; }
       .quick-booking-modal h2 { font-size: 25px; }
       .quick-categories { grid-template-columns: repeat(2, 1fr); }
+      .booking-fields { grid-template-columns: 1fr; }
+      .booking-fields label.full { grid-column: auto; }
     }
   </style>
 </head>
@@ -79,7 +114,11 @@
             <p>No hay profesionales aprobados con servicios de esta categoría que puedan atender durante la próxima hora.</p>
           </div>
           <p class="quick-booking-note">Solo mostramos profesionales que confirmaron disponibilidad para llegar durante los próximos 60 minutos. La hora estimada se asignará automáticamente según el profesional elegido.</p>
-          <a class="quick-booking-submit" href="{% if user.is_authenticated %}{% url 'reservas' %}{% else %}{% url 'login' %}{% endif %}">Solicitar atención ahora</a>
+          {% if user.is_authenticated %}
+            <button class="quick-booking-submit" type="button">Solicitar atención ahora</button>
+          {% else %}
+            <a class="quick-booking-submit" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Inicia sesión para solicitar</a>
+          {% endif %}
         </div>
       </section>
     </div>
@@ -102,15 +141,20 @@
       const categories = modal.querySelectorAll('.quick-category');
       const providerList = modal.querySelector('.quick-provider-list');
       const emptyState = modal.querySelector('.quick-empty');
+      const submit = modal.querySelector('.quick-booking-submit');
       const professionals = JSON.parse(document.getElementById('quick-booking-data').textContent);
+      let selectedProfessional = null;
 
       const renderProfessionals = (category) => {
         const available = professionals[category] || [];
+        selectedProfessional = null;
         providerList.replaceChildren();
         emptyState.hidden = available.length > 0;
         available.forEach((professional, index) => {
-          const card = document.createElement('article');
+          const card = document.createElement('button');
           card.className = 'quick-provider';
+          card.type = 'button';
+          card.dataset.serviceId = professional.service_id;
           const badge = document.createElement('span');
           badge.className = 'quick-provider-badge';
           badge.textContent = `Llega en ${15 + index * 15} min`;
@@ -121,6 +165,11 @@
           const details = document.createElement('b');
           details.textContent = `${professional.duration} min · $${professional.price.toLocaleString('es-CL')}`;
           card.append(badge, name, service, details);
+          card.addEventListener('click', () => {
+            providerList.querySelectorAll('.quick-provider').forEach((item) => item.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedProfessional = professional;
+          });
           providerList.append(card);
         });
       };
@@ -147,6 +196,23 @@
           renderProfessionals(category.dataset.category);
         });
       });
+      if (submit) {
+        submit.addEventListener('click', () => {
+          if (!selectedProfessional) {
+            alert('Selecciona un profesional para continuar.');
+            return;
+          }
+          const bookingTrigger = document.querySelector(
+            `.booking-trigger[data-service-id="${selectedProfessional.service_id}"]`,
+          );
+          if (!bookingTrigger) {
+            alert('El servicio seleccionado no está disponible para reservar.');
+            return;
+          }
+          setModal(false);
+          bookingTrigger.click();
+        });
+      }
       renderProfessionals(categories[0].dataset.category);
     })();
   </script>

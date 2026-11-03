@@ -36,12 +36,73 @@
           <div class="card-meta"><span>{{ service.category }}</span><span>★ {{ service.rating }}</span></div>
           <h3>{{ service.name }}</h3><p>{{ service.provider }} · {{ service.duration }}</p>
           <div class="card-info"><span>◷ {{ service.time }}</span><span>{{ service.distance }}</span></div>
-          <div class="card-bottom"><span>Desde <strong>{{ service.price }}</strong></span><a href="{% if user.is_authenticated %}{% url 'reservas' %}{% else %}{% url 'login' %}{% endif %}">Reservar</a></div>
+          <div class="card-bottom"><span>Desde <strong>{{ service.price }}</strong></span>{% if user.is_authenticated %}<button class="booking-trigger" type="button" data-service-id="{{ service.id }}" data-service-name="{{ service.name }}" data-service-provider="{{ service.provider }}" data-service-price="{{ service.price }}" data-service-image="{{ service.image }}">Reservar</button>{% else %}<a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Inicia sesión</a>{% endif %}</div>
         </div>
       </article>
     {% endfor %}
   </div>
 </section>
+
+{% if user.is_authenticated %}
+<div class="booking-backdrop" id="booking-modal" hidden>
+  <section class="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-title">
+    <button class="booking-close" type="button" aria-label="Cerrar reserva">×</button>
+    <span class="eyebrow booking-eyebrow">Reserva a domicilio</span>
+    <h2 id="booking-title"></h2>
+    <div class="booking-progress"><i class="current"></i><i></i><i></i><i></i></div>
+    <div class="booking-service booking-selection">
+      <img class="booking-service-image" alt="">
+      <div><strong class="booking-service-name"></strong><span>Servicio a tu domicilio</span><small class="booking-service-price"></small></div>
+      <b>A domicilio</b>
+    </div>
+    <form method="post" action="{% url 'reservas' %}" id="booking-form">
+      {% csrf_token %}
+      <input type="hidden" name="service_id" id="booking-service-id">
+      <div class="booking-step booking-step-selection">
+        <h3>1. Elige un día disponible</h3>
+        <div class="booking-dates">
+        {% for booking_date in booking_dates %}
+          <button type="button" data-date="{{ booking_date|date:'Y-m-d' }}"><strong>{{ booking_date|date:'D'|upper }}</strong><b>{{ booking_date|date:'j' }}</b><small>{{ booking_date|date:'M'|upper }}</small></button>
+        {% endfor %}
+        </div>
+        <h3>2. Elige un horario</h3>
+        <div class="booking-times">
+          <button type="button" data-time="10:00">10:00</button><button type="button" data-time="11:30">11:30</button><button type="button" data-time="13:15">13:15</button><button type="button" data-time="15:30">15:30</button><button type="button" data-time="16:15">16:15</button><button type="button" data-time="17:00">17:00</button>
+        </div>
+        <button class="booking-next booking-submit" type="button">Continuar con mis datos</button>
+      </div>
+      <div class="booking-step" hidden>
+        <div class="booking-notice"><strong class="booking-provider-name"></strong> · <span class="booking-date-label"></span> a las <span class="booking-time-label"></span><small>El profesional irá a la dirección que indiques.</small></div>
+        <h3>Datos de contacto y domicilio</h3>
+        <div class="booking-fields">
+          <label>Nombre completo *<input name="contact_name" required value="{{ booking_client.nombre|default:'' }}"></label>
+          <label>Teléfono *<input name="contact_phone" required value="{{ booking_client.telefono|default:'' }}"></label>
+          <label>Correo electrónico *<input name="contact_email" type="email" required value="{{ booking_client.correo|default:user.email }}"></label>
+          <label>Comuna *<input name="commune" required value="Copiapó"></label>
+          <label class="full">Dirección de atención *<input name="address" required value="{{ booking_client.direccion_domicilio|default:'' }}"></label>
+        </div>
+        <div class="booking-actions"><button class="booking-prev" type="button">Volver</button><button class="booking-next booking-submit" type="button">Revisar abono</button></div>
+      </div>
+      <div class="booking-step" hidden>
+        <div class="booking-summary"><span>Resumen de la reserva</span><h3 class="booking-summary-name"></h3><p>Profesional <b class="booking-provider-name"></b></p><p>Fecha y hora <b class="booking-date-label"></b> · <b class="booking-time-label"></b></p><p>Domicilio <b class="booking-address-label"></b></p></div>
+        <div class="booking-deposit"><span>Abono para agendar · 30%</span><strong class="booking-deposit-value"></strong><small>El horario se confirma al completar el abono.</small></div>
+        <div class="booking-actions"><button class="booking-prev" type="button">Editar datos</button><button class="booking-next booking-submit" type="button">Ir al pago</button></div>
+      </div>
+      <div class="booking-step" hidden>
+        <div class="booking-notice">Pagarás <strong class="booking-deposit-value"></strong> para reservar el horario. En este prototipo el pago se simula.</div>
+        <h3>Datos de la tarjeta</h3>
+        <div class="booking-fields"><label class="full">Nombre en la tarjeta *<input name="card_name"></label><label class="full">Número de tarjeta *<input name="card_number" inputmode="numeric" placeholder="4242 4242 4242 4242"></label><label>Vencimiento *<input name="card_expiry" placeholder="MM/AA"></label><label>CVV *<input name="card_cvv" placeholder="123"></label></div>
+        <input type="hidden" name="date" id="booking-date" required><input type="hidden" name="time" id="booking-time" required><input type="hidden" name="payment_status" id="payment-status">
+        <div class="booking-actions"><button class="booking-prev" type="button">Volver al resumen</button><button class="booking-pay booking-submit" type="button">Pagar y reservar</button></div>
+        <button class="booking-reject" type="button">Simular pago rechazado</button>
+      </div>
+      <div class="booking-step booking-payment-failed" hidden>
+        <span class="booking-failed-icon">×</span><h3>No pudimos procesar el pago</h3><p>El abono fue rechazado y no se realizó ningún cargo. La reserva todavía no está creada.</p><div class="booking-actions"><button class="booking-cancel" type="button">Cancelar reserva</button><button class="booking-retry booking-submit" type="button">Intentar otro pago</button></div>
+      </div>
+    </form>
+  </section>
+</div>
+{% endif %}
 
 <script>
   (() => {
@@ -81,6 +142,121 @@
     }
   })();
 </script>
+{% if user.is_authenticated %}
+<script>
+  (() => {
+    const modal = document.getElementById('booking-modal');
+    const close = modal.querySelector('.booking-close');
+    const dateButtons = modal.querySelectorAll('.booking-dates button');
+    const timeButtons = modal.querySelectorAll('.booking-times button');
+    const form = modal.querySelector('#booking-form');
+    const steps = [...modal.querySelectorAll('.booking-step')];
+    const progress = modal.querySelectorAll('.booking-progress i');
+    let currentStep = 0;
+    const setStep = (step) => {
+      currentStep = step;
+      steps.forEach((item, index) => { item.hidden = index !== step; });
+      progress.forEach((item, index) => item.classList.toggle('current', index <= step));
+    };
+    const setOpen = (open) => {
+      modal.hidden = !open;
+      document.body.classList.toggle('modal-open', open);
+      if (open) close.focus();
+      if (open) setStep(0);
+    };
+    document.querySelectorAll('.booking-trigger').forEach((trigger) => {
+      trigger.addEventListener('click', () => {
+        modal.querySelector('#booking-title').textContent = trigger.dataset.serviceName;
+        modal.querySelector('.booking-service-name').textContent = trigger.dataset.serviceProvider;
+        modal.querySelectorAll('.booking-provider-name').forEach((item) => { item.textContent = trigger.dataset.serviceProvider; });
+        modal.querySelector('.booking-service-price').textContent = `Desde ${trigger.dataset.servicePrice}`;
+        modal.querySelector('.booking-service-image').src = trigger.dataset.serviceImage;
+        modal.querySelector('#booking-service-id').value = trigger.dataset.serviceId;
+        modal.querySelector('.booking-summary-name').textContent = trigger.dataset.serviceName;
+        const deposit = trigger.dataset.servicePrice.replace('$', '').replace('.', '');
+        modal.querySelectorAll('.booking-deposit-value').forEach((item) => {
+          item.textContent = `$${Math.round(Number(deposit) * 0.3).toLocaleString('es-CL')}`;
+        });
+        setOpen(true);
+      });
+    });
+    dateButtons.forEach((button) => button.addEventListener('click', () => {
+      dateButtons.forEach((item) => item.classList.remove('active'));
+      button.classList.add('active');
+      modal.querySelector('#booking-date').value = button.dataset.date;
+      modal.querySelectorAll('.booking-date-label').forEach((item) => { item.textContent = `${button.querySelector('b').textContent} de ${button.querySelector('small').textContent}`; });
+    }));
+    timeButtons.forEach((button) => button.addEventListener('click', () => {
+      timeButtons.forEach((item) => item.classList.remove('active'));
+      button.classList.add('active');
+      modal.querySelector('#booking-time').value = button.dataset.time;
+      modal.querySelectorAll('.booking-time-label').forEach((item) => { item.textContent = button.dataset.time; });
+    }));
+    modal.querySelectorAll('.booking-next').forEach((button) => button.addEventListener('click', () => {
+      if (currentStep === 0 && (!modal.querySelector('#booking-date').value || !modal.querySelector('#booking-time').value)) {
+        alert('Selecciona un día y un horario para continuar.');
+        return;
+      }
+      if (currentStep === 1 && ![...modal.querySelectorAll('.booking-step')[1].querySelectorAll('input[required]')].every((input) => input.reportValidity())) return;
+      if (currentStep === 2) {
+        modal.querySelector('.booking-address-label').textContent = modal.querySelector('[name="address"]').value;
+      }
+      setStep(currentStep + 1);
+    }));
+    modal.querySelectorAll('.booking-prev').forEach((button) => button.addEventListener('click', () => setStep(Math.max(0, currentStep - 1))));
+    modal.querySelector('.booking-pay').addEventListener('click', () => {
+      const cardFields = modal.querySelectorAll('[name="card_name"], [name="card_number"], [name="card_expiry"], [name="card_cvv"]');
+      if (![...cardFields].every((input) => input.value.trim())) {
+        alert('Completa los datos de la tarjeta para continuar.');
+        return;
+      }
+      modal.querySelector('#payment-status').value = 'success';
+      form.submit();
+    });
+    modal.querySelector('.booking-reject').addEventListener('click', () => setStep(4));
+    modal.querySelector('.booking-retry').addEventListener('click', () => setStep(3));
+    modal.querySelector('.booking-cancel').addEventListener('click', () => setOpen(false));
+    close.addEventListener('click', () => setOpen(false));
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) setOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !modal.hidden) setOpen(false);
+    });
+  })();
+</script>
+{% endif %}
+{% if confirmed_booking %}
+<div class="booking-backdrop booking-confirmed-backdrop" id="booking-confirmed">
+  <section class="booking-modal booking-confirmed-modal" role="dialog" aria-modal="true" aria-labelledby="booking-confirmed-title">
+    <button class="booking-close" type="button" aria-label="Cerrar confirmación">×</button>
+    <span class="eyebrow">Reserva confirmada</span>
+    <h2 id="booking-confirmed-title">{% with confirmed_booking.servicios.all|first as booked_service %}{{ booked_service.nombre }}{% endwith %}</h2>
+    <div class="booking-confirmed-content">
+      <span class="booking-confirmed-icon">✓</span>
+      <h3>Reserva y abono confirmados</h3>
+      <p>Tu atención quedó agendada para el {{ confirmed_booking.fecha|date:"j \d\e F" }} a las {{ confirmed_booking.hora_bloque|time:"H:i" }}, en {{ confirmed_booking.direccion_visita }}.</p>
+      <div class="booking-paid">Abono pagado <strong>${{ confirmed_payment.monto_total|default:"0" }}</strong></div>
+      <a class="booking-submit" href="{% url 'home' %}">Volver al inicio</a>
+    </div>
+  </section>
+</div>
+<script>
+  (() => {
+    const modal = document.getElementById('booking-confirmed');
+    const close = modal.querySelector('.booking-close');
+    const closeModal = () => {
+      modal.hidden = true;
+      document.body.classList.remove('modal-open');
+    };
+    document.body.classList.add('modal-open');
+    close.addEventListener('click', closeModal);
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeModal();
+    });
+  })();
+</script>
+{% endif %}
 
 <section class="provider-cta">
   <div class="provider-photo"></div>

@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -8,13 +10,14 @@ from .forms import (
     RegistroClienteForm,
     RegistroPrestadorForm,
 )
-from .models import Prestador, Reserva, Servicio
+from .models import Pago, Prestador, Reserva, Servicio
 
 from django.contrib import messages
 
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse_lazy
+from django.utils import timezone
 from unicodedata import normalize as unicode_normalize
 
 SERVICE_CATALOG = [
@@ -62,6 +65,7 @@ def _filtered_services(request):
     ).order_by('idservicio')
     services = [
         {
+            'id': service.idservicio,
             'category': service.prestador_idprestador.especialidad.split(' y ')[0],
             'category_keys': _service_category_keys(service),
             'name': service.nombre,
@@ -81,6 +85,7 @@ def _filtered_services(request):
         services = [
             {
                 **item,
+                'id': None,
                 'category_keys': _catalog_category_keys(item['category']),
             }
             for item in SERVICE_CATALOG
@@ -126,14 +131,82 @@ def _catalog_category_keys(category):
 
 # Vista principal
 def home(request):
+    client_profile = getattr(request.user, 'perfil_cliente', None)
+    confirmed_booking = None
+    if request.GET.get('reserva') == 'confirmada' and client_profile:
+        confirmed_booking = Reserva.objects.filter(
+            idreserva=request.GET.get('id'),
+            cliente_idcliente=client_profile,
+        ).prefetch_related('servicios').first()
+    confirmed_payment = (
+        Pago.objects.filter(reserva_idreserva=confirmed_booking).first()
+        if confirmed_booking else None
+    )
     return render(request, 'website/home.html', {
         'services': _filtered_services(request),
         'categories': CATEGORIES,
+        'booking_dates': [
+            timezone.localdate() + timedelta(days=offset)
+            for offset in range(1, 8)
+        ],
+        'booking_client': client_profile,
+        'confirmed_booking': confirmed_booking,
+        'confirmed_payment': confirmed_payment,
     })
 
 
 @login_required
 def reservas(request):
+    if request.method == 'POST':
+        cliente = getattr(request.user, 'perfil_cliente', None)
+        service_id = request.POST.get('service_id')
+        selected_date = request.POST.get('date')
+        selected_time = request.POST.get('time')
+        contact_name = request.POST.get('contact_name', '').strip()
+        contact_email = request.POST.get('contact_email', '').strip()
+        contact_phone = request.POST.get('contact_phone', '').strip()
+        address = request.POST.get('address', '').strip()
+        payment_status = request.POST.get('payment_status')
+        if not all((cliente, service_id, selected_date, selected_time, contact_name,
+                    contact_email, contact_phone, address)):
+            messages.error(request, 'Completa todos los datos de la reserva.')
+            return redirect('home')
+        if '@' not in contact_email or len(contact_phone) < 8:
+            messages.error(request, 'Revisa tu correo y teléfono antes de continuar.')
+            return redirect('home')
+        if payment_status != 'success':
+            messages.error(request, 'El pago no fue aprobado. La reserva no fue creada.')
+            return redirect('home')
+        service = get_object_or_404(Servicio, pk=service_id)
+        try:
+            reservation_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
+            reservation_time = datetime.strptime(selected_time, '%H:%M').time()
+        except ValueError:
+            messages.error(request, 'La fecha u hora seleccionada no es válida.')
+            return redirect('home')
+        reservation = Reserva.objects.create(
+            idreserva=(Reserva.objects.order_by('-idreserva').values_list(
+                'idreserva', flat=True
+            ).first() or 0) + 1,
+            fecha=reservation_date,
+            hora_bloque=timezone.make_aware(
+                datetime.combine(reservation_date, reservation_time)
+            ),
+            direccion_visita=address[:45],
+            estado='Pendiente',
+            cliente_idcliente=cliente,
+        )
+        reservation.servicios.add(service)
+        Pago.objects.create(
+            idpago=(Pago.objects.order_by('-idpago').values_list(
+                'idpago', flat=True
+            ).first() or 0) + 1,
+            monto_total=round(service.precio_base * 0.3),
+            metodo_pago='Simulación Webpay aprobada',
+            reserva_idreserva=reservation,
+        )
+        return redirect(f'/?reserva=confirmada&id={reservation.idreserva}')
+
     cliente = getattr(request.user, 'perfil_cliente', None)
     user_reservas = Reserva.objects.filter(
         cliente_idcliente=cliente
