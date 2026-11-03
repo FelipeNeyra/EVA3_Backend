@@ -210,8 +210,27 @@ def reservas(request):
     cliente = getattr(request.user, 'perfil_cliente', None)
     user_reservas = Reserva.objects.filter(
         cliente_idcliente=cliente
-    ).prefetch_related('servicios') if cliente else Reserva.objects.none()
-    return render(request, 'website/reservas.html', {'reservas': user_reservas})
+    ).prefetch_related('servicios').order_by('-fecha', '-hora_bloque') if cliente else Reserva.objects.none()
+    reservation_cards = []
+    for index, reserva in enumerate(user_reservas):
+        service = reserva.servicios.select_related(
+            'prestador_idprestador__usuario'
+        ).first()
+        payment = Pago.objects.filter(reserva_idreserva=reserva).first()
+        if service:
+            provider = service.prestador_idprestador
+            reservation_cards.append({
+                'reservation': reserva,
+                'service': service,
+                'provider': provider.usuario.get_full_name() or provider.usuario.username,
+                'specialty': provider.especialidad,
+                'payment': payment,
+                'image': SERVICE_CATALOG[index % len(SERVICE_CATALOG)]['image'],
+            })
+    return render(request, 'website/reservas.html', {
+        'reservations': reservation_cards,
+        'booking_client': cliente,
+    })
 
 
 @login_required

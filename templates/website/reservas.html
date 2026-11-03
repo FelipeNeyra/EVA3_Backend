@@ -1,10 +1,63 @@
 {% extends 'website/base.html' %}
 {% block title %}Mis reservas · RG Beauty{% endblock %}
 {% block content %}
-<section class="section-head"><div><span class="eyebrow">Tu agenda</span><h1>Mis reservas</h1></div><a class="nav-cta" href="{% url 'home' %}#services">Nueva reserva</a></section>
-<div class="admin-card">
-  {% for reserva in reservas %}
-    <article class="request"><strong>Reserva #{{ reserva.idreserva }}</strong><p>{{ reserva.fecha }} · {{ reserva.hora_bloque|time:"H:i" }} · {{ reserva.direccion_visita }}</p><small>Estado: {{ reserva.estado }}</small></article>
-  {% empty %}<p class="empty">Aún no tienes reservas. <a href="{% url 'home' %}#services">Busca un servicio</a> para comenzar.</p>{% endfor %}
-</div>
+<style>
+  .reservations-page { max-width: 700px; margin: 20px auto 50px; border-radius: 26px; background: #f8f5f1; box-shadow: 0 24px 60px rgba(56,35,47,.16); overflow: hidden; }
+  .reservations-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 30px 18px; border-bottom: 1px solid #e9e2e1; }
+  .reservations-header h1 { margin: 6px 0 0; font: 500 28px "Playfair Display",serif; }
+  .reservations-header-actions { display: flex; align-items: center; gap: 10px; }
+  .reservations-close { display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 50%; background: #fff; color: #38232f; font-size: 24px; text-decoration: none; }
+  .reservations-profile { display: flex; align-items: center; gap: 14px; margin: 28px 30px 21px; padding: 14px 16px; border-radius: 15px; background: #c9e8c5; }
+  .reservations-profile-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #a9dfa7; font-size: 21px; }
+  .reservations-profile strong, .reservations-profile small { display: block; }
+  .reservations-profile small { margin-top: 4px; color: #6b7b68; }
+  .reservations-list { display: grid; gap: 15px; padding: 0 30px 30px; }
+  .reservation-card { display: grid; grid-template-columns: 145px 1fr; gap: 18px; padding: 12px; border: 1px solid #e4dfe0; border-radius: 16px; background: #fff; }
+  .reservation-card-image { width: 145px; height: 165px; border-radius: 12px; object-fit: cover; }
+  .reservation-card-body { min-width: 0; padding: 5px 0 0; }
+  .reservation-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .reservation-card-category { color: #e00069; font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+  .reservation-card h2 { margin: 7px 0 2px; font: 500 22px "Playfair Display",serif; }
+  .reservation-card-service { margin: 0; color: #a28f96; }
+  .reservation-card-provider { margin: 8px 0 0; color: #38232f; }
+  .reservation-card-address { margin: 3px 0 16px; color: #a28f96; font-size: 11px; }
+  .reservation-card-details { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; border-top: 1px solid #e9e2e1; padding-top: 12px; }
+  .reservation-card-date { font-weight: 700; }
+  .reservation-card-time { display: block; margin-top: 5px; color: #a28f96; font-size: 11px; }
+  .reservation-card-price { text-align: right; font: 500 19px "Playfair Display",serif; }
+  .reservation-card-price small { display: block; margin-top: 3px; color: #a28f96; font: 9px "DM Sans",sans-serif; }
+  .reservation-status { flex: 0 0 auto; border-radius: 14px; background: #a9dfa7; color: #365136; padding: 6px 10px; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+  .reservations-empty { margin: 0 30px 30px; padding: 30px; border-radius: 15px; background: #fff; text-align: center; color: #8d8081; }
+  @media (max-width: 620px) { .reservations-page { margin: 10px -12px 30px; border-radius: 20px; } .reservations-header { padding: 20px; } .reservations-profile { margin: 20px; } .reservations-list { padding: 0 20px 20px; } .reservation-card { grid-template-columns: 100px 1fr; gap: 12px; } .reservation-card-image { width: 100px; height: 145px; } .reservation-card h2 { font-size: 18px; } .reservation-card-details { display: block; } .reservation-card-price { margin-top: 10px; text-align: left; } }
+</style>
+<section class="reservations-page">
+  <header class="reservations-header">
+    <div><span class="eyebrow">Cuenta de {{ booking_client.nombre|default:user.get_full_name }}</span><h1>Mis reservas</h1></div>
+    <div class="reservations-header-actions"><form class="inline-form" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="booking-prev" type="submit">Cerrar sesión</button></form><a class="reservations-close" href="{% url 'home' %}" aria-label="Cerrar">×</a></div>
+  </header>
+  <div class="reservations-profile">
+    <span class="reservations-profile-icon">♙</span>
+    <div><strong>{{ booking_client.nombre|default:user.get_full_name }}</strong><small>{{ booking_client.correo|default:user.email }} · {{ booking_client.direccion_domicilio|default:"Copiapó" }}</small></div>
+  </div>
+  <div class="reservations-list">
+    {% for item in reservations %}
+      <article class="reservation-card">
+        <img class="reservation-card-image" src="{{ item.image }}" alt="{{ item.service.nombre }}">
+        <div class="reservation-card-body">
+          <div class="reservation-card-top"><span class="reservation-card-category">{{ item.specialty }}</span><span class="reservation-status">{{ item.reservation.estado|default:"Confirmada" }}</span></div>
+          <h2>{{ item.service.prestador_idprestador.usuario.get_full_name|default:"RG Beauty Spa" }}</h2>
+          <p class="reservation-card-service">{{ item.service.nombre }} · {{ item.service.duracion }} min</p>
+          <p class="reservation-card-provider">Con {{ item.provider }} · a domicilio</p>
+          <p class="reservation-card-address">{{ item.reservation.direccion_visita }}</p>
+          <div class="reservation-card-details">
+            <div><span class="reservation-card-date">▣ {{ item.reservation.fecha|date:"l, j \d\e F" }}</span><span class="reservation-card-time">◷ {{ item.reservation.hora_bloque|time:"h:i a" }}</span></div>
+            <div class="reservation-card-price">${{ item.service.precio_base|floatformat:0 }}<small>Abono pagado: ${{ item.payment.monto_total|default:"0" }}</small></div>
+          </div>
+        </div>
+      </article>
+    {% empty %}
+      <p class="reservations-empty">Aún no tienes reservas. <a href="{% url 'home' %}#services">Busca un servicio</a> para comenzar.</p>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}
