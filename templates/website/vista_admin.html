@@ -7,7 +7,7 @@
     <span class="admin-sidebar-label">Gestión administrativa</span>
     <nav class="admin-section-nav" aria-label="Secciones administrativas">
       <a href="{% url 'vista_administrador' %}?section=liquidaciones" class="{% if section == 'liquidaciones' %}active{% endif %}" {% if section == 'liquidaciones' %}aria-current="page"{% endif %}>
-        <span class="admin-nav-icon">▤</span><span>Liquidaciones</span><b>{{ liquidations|length }}</b>
+        <span class="admin-nav-icon">▤</span><span>Liquidaciones</span><b>{{ liquidation_count }}</b>
       </a>
       <a href="{% url 'vista_administrador' %}?section=solicitudes" class="{% if section == 'solicitudes' %}active{% endif %}" {% if section == 'solicitudes' %}aria-current="page"{% endif %}>
         <span class="admin-nav-icon">♙</span><span>Solicitudes</span><b>{{ pending_request_count }}</b>
@@ -42,7 +42,7 @@
       <div class="admin-period-card">
         <strong>{{ current_period|date:"F Y" }}</strong>
         <span>Cuota mensual por profesional</span>
-        <b>$5.000</b>
+        <b>{{ monthly_subscription_price }}</b>
         <small>Los pagos se registran manualmente; esta vista no realiza cobros.</small>
       </div>
     {% else %}
@@ -51,7 +51,7 @@
       <div class="admin-period-card">
         <strong>Liquidaciones</strong>
         <span>Registros asociados a servicios y profesionales.</span>
-        <b>{{ liquidations|length }}</b>
+        <b>{{ liquidation_count }}</b>
       </div>
     {% endif %}
   </aside>
@@ -119,7 +119,7 @@
       <section class="admin-section-heading">
         <span class="admin-sidebar-label">Gestión de suscripciones</span>
         <h1>Pagos mensuales</h1>
-        <p>Periodo: {{ current_period|date:"F Y" }} · Valor mensual: <strong>$5.000 CLP</strong></p>
+        <p>Periodo: {{ current_period|date:"F Y" }} · Valor mensual: <strong>{{ monthly_subscription_price }} CLP</strong></p>
       </section>
       <div class="admin-table-wrap">
         <table class="admin-table">
@@ -131,9 +131,9 @@
                 <td>{{ row.prestador.especialidad }}</td>
                 <td>
                   {% if row.subscription and row.subscription.estado == 'pagada' %}
-                    <span class="status-pill approved">Pagada · ${{ row.subscription.monto }}</span>
+                    <span class="status-pill approved">Pagada · {{ row.amount_display }}</span>
                   {% else %}
-                    <span class="status-pill pending">Pendiente · $5.000</span>
+                    <span class="status-pill pending">Pendiente · {{ row.amount_display }}</span>
                   {% endif %}
                 </td>
                 <td>{% if row.subscription and row.subscription.fecha_pago %}{{ row.subscription.fecha_pago|date:"j M Y, H:i" }}{% else %}—{% endif %}</td>
@@ -165,19 +165,19 @@
         <table class="admin-table">
           <thead><tr><th>N°</th><th>Servicios y profesionales</th><th>Monto bruto</th><th>Comisión</th><th>Neto profesional</th></tr></thead>
           <tbody>
-            {% for liquidation in liquidations %}
+            {% for row in liquidation_rows %}
               <tr>
-                <td><strong>#{{ liquidation.idliquidacion }}</strong></td>
+                <td><strong>#{{ row.liquidation.idliquidacion }}</strong></td>
                 <td>
-                  {% for service in liquidation.servicios.all %}
+                  {% for service in row.liquidation.servicios.all %}
                     <strong>{{ service.nombre }}</strong><small>{{ service.prestador_idprestador.usuario.get_full_name|default:service.prestador_idprestador.usuario.username }}</small>
                   {% empty %}
                     <small>Sin servicios asociados</small>
                   {% endfor %}
                 </td>
-                <td>${{ liquidation.monto_bruto_total|floatformat:0 }}</td>
-                <td>{{ liquidation.porcentaje_comision|floatformat:0 }}%<small>${{ liquidation.monto_comision_spa|floatformat:0 }}</small></td>
-                <td><strong>${{ liquidation.monto_neto_prestador|floatformat:0 }}</strong></td>
+                <td>{{ row.gross_display }}</td>
+                <td>{{ row.liquidation.porcentaje_comision|floatformat:0 }}%<small>{{ row.commission_display }}</small></td>
+                <td><strong>{{ row.net_display }}</strong></td>
               </tr>
             {% empty %}
               <tr><td class="admin-table-empty" colspan="5">Todavía no hay liquidaciones registradas.</td></tr>

@@ -50,6 +50,21 @@ class AdminDashboardTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse('vista_administrador'), response['Location'])
 
+    def test_superuser_login_redirects_to_dashboard(self):
+        User.objects.create_superuser(
+            username='root-admin',
+            email='root@example.com',
+            password='secure-test-password',
+        )
+
+        response = self.client.post(reverse('login'), {
+            'username': 'root@example.com',
+            'password': 'secure-test-password',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('vista_administrador'), response['Location'])
+
     def test_dashboard_requires_an_administrator(self):
         regular_user = User.objects.create_user(
             username='regular',
@@ -153,5 +168,5 @@ class AdminDashboardTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Corte y brushing')
-        self.assertContains(response, '$28000')
-        self.assertContains(response, '$23800')
+        self.assertContains(response, '$28.000')
+        self.assertContains(response, '$23.800')

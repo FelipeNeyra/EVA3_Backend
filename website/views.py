@@ -91,6 +91,10 @@ def admin_required(view_func):
     return wrapped_view
 
 
+def _format_clp(amount):
+    return f'${amount:,.0f}'.replace(',', '.')
+
+
 def _filtered_services(request):
     query = request.GET.get('q', '').strip().lower()
     category = request.GET.get('categoria', '').strip().lower()
@@ -420,23 +424,38 @@ def vista_administrador(request):
             prestador__estado_aprobacion=True,
         )
     }
-    subscription_rows = [
-        {
+    subscription_rows = []
+    for provider in approved_providers:
+        subscription = subscriptions.get(provider.pk)
+        subscription_rows.append({
             'prestador': provider,
-            'subscription': subscriptions.get(provider.pk),
-        }
-        for provider in approved_providers
-    ]
+            'subscription': subscription,
+            'amount_display': _format_clp(
+                subscription.monto if subscription else MONTHLY_SUBSCRIPTION_PRICE
+            ),
+        })
     pending_subscriptions = sum(
         row['subscription'] is None
         or row['subscription'].estado == SuscripcionPrestador.PENDIENTE
         for row in subscription_rows
     )
-    liquidations = Liquidacion.objects.select_related(
-        'administrador_idadministrador__usuario',
-    ).prefetch_related(
-        'servicios__prestador_idprestador__usuario',
-    ).order_by('-idliquidacion')
+    liquidation_count = Liquidacion.objects.count()
+    liquidations = list(
+        Liquidacion.objects.select_related(
+            'administrador_idadministrador__usuario',
+        ).prefetch_related(
+            'servicios__prestador_idprestador__usuario',
+        ).order_by('-idliquidacion')
+    ) if section == 'liquidaciones' else []
+    liquidation_rows = [
+        {
+            'liquidation': liquidation,
+            'gross_display': _format_clp(liquidation.monto_bruto_total),
+            'commission_display': _format_clp(liquidation.monto_comision_spa),
+            'net_display': _format_clp(liquidation.monto_neto_prestador),
+        }
+        for liquidation in liquidations
+    ]
 
     return render(request, 'website/vista_admin.html', {
         'section': section,
@@ -450,8 +469,9 @@ def vista_administrador(request):
         'subscription_rows': subscription_rows,
         'pending_subscription_count': pending_subscriptions,
         'current_period': current_period,
-        'monthly_subscription_price': MONTHLY_SUBSCRIPTION_PRICE,
-        'liquidations': liquidations,
+        'monthly_subscription_price': _format_clp(MONTHLY_SUBSCRIPTION_PRICE),
+        'liquidation_count': liquidation_count,
+        'liquidation_rows': liquidation_rows,
     })
 
 
