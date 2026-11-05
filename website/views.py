@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
+from functools import wraps
 
 from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from .forms import (
     EditarUsuarioForm,
@@ -10,11 +12,19 @@ from .forms import (
     RegistroClienteForm,
     RegistroPrestadorForm,
 )
-from .models import Pago, Prestador, Reserva, Servicio
+from .models import (
+    Administrador,
+    Liquidacion,
+    Pago,
+    Prestador,
+    Reserva,
+    Servicio,
+    SuscripcionPrestador,
+)
 
 from django.contrib import messages
 
-from django.contrib.auth.views import PasswordChangeView
+from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -23,7 +33,7 @@ from unicodedata import normalize as unicode_normalize
 SERVICE_CATALOG = [
     {
         'category': 'Faciales', 'name': 'Facial hidratación profunda',
-        'provider': 'RG Beauty Spa', 'duration': '60 min', 'price': '$32.000',
+        'provider': 'Beauty Go Spa', 'duration': '60 min', 'price': '$32.000',
         'time': 'Hoy, 12:30', 'distance': '0,5 km', 'rating': '4.8 (24)',
         'badge': 'Más elegido',
         'image': 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=700&q=80',
@@ -55,6 +65,30 @@ CATEGORIES = [
     ('todo', '✦ Todo'), ('peluqueria', '◒ Peluquería'), ('unas', '◌ Uñas'),
     ('faciales', '◉ Faciales'), ('cejas', '◍ Cejas'), ('pestanas', '◉ Pestañas'),
 ]
+
+MONTHLY_SUBSCRIPTION_PRICE = 5000
+
+
+class BeautyGoLoginView(LoginView):
+    def get_success_url(self):
+        user = self.request.user
+        if user.is_superuser or Administrador.objects.filter(usuario_id=user.pk).exists():
+            return self.get_redirect_url() or reverse_lazy('vista_administrador')
+        return super().get_success_url()
+
+
+def admin_required(view_func):
+    @login_required
+    @wraps(view_func)
+    def wrapped_view(request, *args, **kwargs):
+        if not (
+            request.user.is_superuser
+            or Administrador.objects.filter(usuario_id=request.user.pk).exists()
+        ):
+            raise PermissionDenied
+        return view_func(request, *args, **kwargs)
+
+    return wrapped_view
 
 
 def _filtered_services(request):
@@ -345,21 +379,83 @@ def vista_solicitud_prestadores(request):
     )
 
 # --------- SECCIÓN DE ADMINISTRADORES -------
-@login_required
+@admin_required
 def vista_administrador(request):
+    providers = Prestador.objects.select_related('usuario').filter(
+        usuario__isnull=False,
+    )
+    pending_requests = providers.filter(
+        estado_aprobacion__isnull=True,
+    ).order_by('usuario__date_joined', 'pk')
+    approved_providers = providers.filter(
+        estado_aprobacion=True,
+    ).order_by('usuario__first_name', 'usuario__last_name', 'pk')
+    rejected_requests = providers.filter(
+        estado_aprobacion=False,
+    ).order_by('usuario__first_name', 'usuario__last_name', 'pk')
+
+    section = request.GET.get('section', 'solicitudes')
+    if section not in {'solicitudes', 'suscripciones', 'liquidaciones'}:
+        section = 'solicitudes'
+
+    provider_list = list(providers.order_by('usuario__date_joined', 'pk'))
+    selected_provider = None
+    requested_provider_id = request.GET.get('prestador')
+    if requested_provider_id:
+        selected_provider = next(
+            (provider for provider in provider_list
+             if str(provider.pk) == requested_provider_id),
+            None,
+        )
+    if selected_provider is None:
+        selected_provider = pending_requests.first() or (
+            provider_list[0] if provider_list else None
+        )
+
+    current_period = timezone.localdate().replace(day=1)
+    subscriptions = {
+        subscription.prestador_id: subscription
+        for subscription in SuscripcionPrestador.objects.filter(
+            periodo=current_period,
+            prestador__estado_aprobacion=True,
+        )
+    }
+    subscription_rows = [
+        {
+            'prestador': provider,
+            'subscription': subscriptions.get(provider.pk),
+        }
+        for provider in approved_providers
+    ]
+    pending_subscriptions = sum(
+        row['subscription'] is None
+        or row['subscription'].estado == SuscripcionPrestador.PENDIENTE
+        for row in subscription_rows
+    )
+    liquidations = Liquidacion.objects.select_related(
+        'administrador_idadministrador__usuario',
+    ).prefetch_related(
+        'servicios__prestador_idprestador__usuario',
+    ).order_by('-idliquidacion')
+
     return render(request, 'website/vista_admin.html', {
-        'solicitudes_espera': Prestador.objects.filter(
-            estado_aprobacion__isnull=True
-        ).select_related('usuario'),
-        'solicitudes_aprobadas': Prestador.objects.filter(
-            estado_aprobacion=True
-        ).select_related('usuario'),
-        'solicitudes_rechazadas': Prestador.objects.filter(
-            estado_aprobacion=False
-        ).select_related('usuario'),
+        'section': section,
+        'pending_requests': pending_requests,
+        'approved_providers': approved_providers,
+        'rejected_requests': rejected_requests,
+        'selected_provider': selected_provider,
+        'pending_request_count': pending_requests.count(),
+        'approved_provider_count': approved_providers.count(),
+        'rejected_request_count': rejected_requests.count(),
+        'subscription_rows': subscription_rows,
+        'pending_subscription_count': pending_subscriptions,
+        'current_period': current_period,
+        'monthly_subscription_price': MONTHLY_SUBSCRIPTION_PRICE,
+        'liquidations': liquidations,
     })
 
-@login_required
+
+@admin_required
 def vista_aprobar_rechazar_solicitud(request, pk):
     if request.method != 'POST':
         return redirect('vista_administrador')
@@ -374,4 +470,46 @@ def vista_aprobar_rechazar_solicitud(request, pk):
     solicitud.save(update_fields=['estado_aprobacion'])
 
     messages.success(request, 'El estado de la solicitud fue actualizado.')
-    return redirect('vista_administrador')
+    return redirect(f"{reverse_lazy('vista_administrador')}?section=solicitudes&prestador={pk}")
+
+
+@admin_required
+def vista_actualizar_suscripcion(request, pk):
+    if request.method != 'POST':
+        return redirect('vista_administrador')
+
+    estado = request.POST.get('estado')
+    if estado not in {SuscripcionPrestador.PENDIENTE, SuscripcionPrestador.PAGADA}:
+        messages.error(request, 'El estado de suscripción no es válido.')
+        return redirect(
+            f"{reverse_lazy('vista_administrador')}?section=suscripciones"
+        )
+
+    prestador = get_object_or_404(
+        Prestador,
+        pk=pk,
+        estado_aprobacion=True,
+    )
+    periodo = timezone.localdate().replace(day=1)
+    subscription, _ = SuscripcionPrestador.objects.get_or_create(
+        prestador=prestador,
+        periodo=periodo,
+        defaults={'monto': MONTHLY_SUBSCRIPTION_PRICE},
+    )
+    subscription.estado = estado
+    subscription.monto = MONTHLY_SUBSCRIPTION_PRICE
+    subscription.fecha_pago = (
+        timezone.now() if estado == SuscripcionPrestador.PAGADA else None
+    )
+    subscription.registrado_por = request.user
+    subscription.save(update_fields=[
+        'estado',
+        'monto',
+        'fecha_pago',
+        'registrado_por',
+    ])
+
+    messages.success(request, 'El estado de la suscripción fue actualizado.')
+    return redirect(
+        f"{reverse_lazy('vista_administrador')}?section=suscripciones"
+    )

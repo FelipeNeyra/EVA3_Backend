@@ -1,8 +1,8 @@
 {% extends 'website/base.html' %}
-{% block title %}{% if es_registro %}Crear cuenta{% else %}Mi cuenta{% endif %} · RG Beauty{% endblock %}
+{% block title %}{% if es_registro %}Crear cuenta{% else %}Mi cuenta{% endif %} · Beauty Go{% endblock %}
 {% block content %}
 <main class="form-page"><div class="form-card">
-  <span class="eyebrow">{% if es_registro %}Únete a RG Beauty{% else %}Tus datos{% endif %}</span>
+  <span class="eyebrow">{% if es_registro %}Únete a Beauty Go{% else %}Tus datos{% endif %}</span>
   <h1>{% if es_registro %}Crea tu cuenta{% else %}Mi cuenta{% endif %}</h1>
   <p>{% if es_registro %}Regístrate para reservar tus servicios favoritos.{% else %}Mantén tus datos actualizados.{% endif %}</p>
   <form method="post" class="styled-form">{% csrf_token %}{{ user_form.as_p }}{{ cliente_form.as_p }}<button class="primary-button" type="submit">{% if es_registro %}Registrarme{% else %}Guardar cambios{% endif %}</button></form>

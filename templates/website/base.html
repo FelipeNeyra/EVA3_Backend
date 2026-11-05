@@ -4,12 +4,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}RG Beauty{% endblock %}</title>
+  <title>{% block title %}Beauty Go{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'website/css/styles.css' %}?v=20261103-4">
+  <link rel="stylesheet" href="{% static 'website/css/styles.css' %}?v=20261104-admin1">
   <style>
+    .brand-monogram { width: 48px; height: 48px; object-fit: contain; }
+    .brand-wordmark { width: 168px; height: auto; }
     .quick-booking-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgba(56, 35, 47, .6); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
     .quick-booking-backdrop[hidden] { display: none !important; }
     .quick-booking-modal { position: relative; width: min(100%, 535px); max-height: calc(100vh - 40px); overflow: auto; border-radius: 20px; background: #f8f5f1; color: #38232f; box-shadow: 0 22px 55px rgba(56, 35, 47, .4); padding: 20px 22px 21px; }
@@ -19,33 +21,33 @@
     .quick-booking-content h3 { color: #a39798; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; margin: 0 0 11px; }
     .quick-categories { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 23px; }
     .quick-category { border: 1px solid #e4dfe0; border-radius: 10px; background: #fff; color: #5d5055; padding: 10px 9px; text-align: left; font-size: 13px; }
-    .quick-category.active { border-color: #e00069; background: #e00069; color: #fff; }
+    .quick-category.active { border-color: #d60768; background: #d60768; color: #fff; }
     .quick-provider-list { display: flex; gap: 10px; flex-wrap: wrap; }
     .quick-provider { display: flex; flex-direction: column; gap: 5px; width: 157px; border: 1px solid #e4dfe0; border-radius: 15px; background: #fff; padding: 16px 13px; margin-bottom: 22px; text-align: left; }
-    .quick-provider.selected { border-color: #e00069; background: #fae5eb; outline: 3px solid #e00069; outline-offset: 2px; }
+    .quick-provider.selected { border-color: #d60768; background: #fae5eb; outline: 3px solid #d60768; outline-offset: 2px; }
     .quick-provider:focus-visible { outline: 3px solid #38232f; outline-offset: 2px; }
-    .quick-provider-badge { align-self: flex-start; border-radius: 12px; background: #a9dfa7; color: #365136; font-size: 7px; font-weight: 700; padding: 4px 8px; text-transform: uppercase; }
+    .quick-provider-badge { align-self: flex-start; border-radius: 12px; background: #a5dea8; color: #365136; font-size: 7px; font-weight: 700; padding: 4px 8px; text-transform: uppercase; }
     .quick-provider span:not(.quick-provider-badge) { color: #a28f96; font-size: 10px; }
     .quick-provider b { font-size: 11px; }
-    .quick-booking-note { border-radius: 13px; background: #c9e8c5; color: #6b7b68; font-size: 10px; line-height: 1.5; margin: 0 0 16px; padding: 12px; }
-    .quick-booking-submit { display: block; border-radius: 23px; background: #e00069; color: #fff; padding: 13px; text-align: center; text-decoration: none; font-size: 13px; font-weight: 700; }
-    .booking-progress i.current { background: #e00069; }
+    .quick-booking-note { border-radius: 13px; background: #a5dea8; color: #6b7b68; font-size: 10px; line-height: 1.5; margin: 0 0 16px; padding: 12px; }
+    .quick-booking-submit { display: block; border-radius: 23px; background: #d60768; color: #fff; padding: 13px; text-align: center; text-decoration: none; font-size: 13px; font-weight: 700; }
+    .booking-progress i.current { background: #d60768; }
     .booking-step[hidden] { display: none !important; }
     .booking-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .booking-fields label { display: flex; flex-direction: column; gap: 6px; color: #5d5055; font-size: 10px; font-weight: 700; }
     .booking-fields label.full { grid-column: 1 / -1; }
     .booking-fields input { border: 1px solid #e4dfe0; border-radius: 9px; padding: 11px; background: #fff; color: #38232f; }
-    .booking-notice { border-radius: 13px; background: #c9e8c5; color: #6b7b68; padding: 13px; font-size: 10px; line-height: 1.5; margin-bottom: 18px; }
+    .booking-notice { border-radius: 13px; background: #a5dea8; color: #6b7b68; padding: 13px; font-size: 10px; line-height: 1.5; margin-bottom: 18px; }
     .booking-notice small { display: block; margin-top: 5px; }
     .booking-actions { display: flex; gap: 10px; margin-top: 20px; }
     .booking-actions > * { flex: 1; }
     .booking-prev, .booking-cancel { border: 1px solid #ded5d8; border-radius: 22px; background: transparent; color: #5d5055; padding: 12px; }
     .booking-summary { border-radius: 16px; background: #38232f; color: #fff; padding: 20px; }
-    .booking-summary > span, .booking-deposit > span { color: #c4edaf; font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; }
+    .booking-summary > span, .booking-deposit > span { color: #a5dea8; font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; }
     .booking-summary h3 { color: #fff; font: 500 23px "Playfair Display", serif; letter-spacing: 0; text-transform: none; }
     .booking-summary p { color: #c7b9c1; display: flex; justify-content: space-between; border-top: 1px solid #ffffff22; padding-top: 8px; }
     .booking-summary p b { color: #fff; }
-    .booking-deposit { border: 1px solid #e00069; border-radius: 14px; padding: 16px; margin-top: 16px; }
+    .booking-deposit { border: 1px solid #d60768; border-radius: 14px; padding: 16px; margin-top: 16px; }
     .booking-deposit strong { display: block; font: 500 28px "Playfair Display", serif; margin: 4px 0; }
     .booking-deposit small { color: #a28f96; }
     .booking-reject { display: block; border: 0; background: none; color: #a28f96; text-decoration: underline; margin: 14px auto 0; }
@@ -54,7 +56,7 @@
     .booking-payment-failed h3 { font: 500 25px "Playfair Display", serif; text-transform: none; letter-spacing: 0; }
     .booking-payment-failed p { color: #a28f96; line-height: 1.5; }
     .booking-confirmed-content { text-align: center; padding: 28px 8px 4px; }
-    .booking-confirmed-icon { display: grid; place-items: center; width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; background: #9cdda0; color: #38232f; font-size: 38px; }
+    .booking-confirmed-icon { display: grid; place-items: center; width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; background: #a5dea8; color: #38232f; font-size: 38px; }
     .booking-confirmed-content h3 { font: 500 25px "Playfair Display", serif; margin: 0 0 10px; text-transform: none; letter-spacing: 0; }
     .booking-confirmed-content p { color: #a28f96; line-height: 1.5; margin: 0 auto 18px; max-width: 390px; }
     .booking-paid { border-radius: 13px; background: #fff; color: #a28f96; padding: 12px; margin-bottom: 20px; }
@@ -67,26 +69,46 @@
       .quick-categories { grid-template-columns: repeat(2, 1fr); }
       .booking-fields { grid-template-columns: 1fr; }
       .booking-fields label.full { grid-column: auto; }
+      .brand-monogram { width: 40px; height: 40px; }
+      .brand-wordmark { width: 132px; }
     }
   </style>
 </head>
 <body>
-  <main class="page-shell">
+  <main class="page-shell {% block page_shell_class %}{% endblock %}">
     <header class="site-header">
       <a class="brand" href="{% url 'home' %}">
-        <span class="brand-mark">RG</span>
-        <span class="brand-name">RG <strong>Beauty</strong></span>
+        <img class="brand-monogram" src="{% static 'website/images/beauty-go-monogram.png' %}" alt="">
+        <img class="brand-wordmark" src="{% static 'website/images/beauty-go-wordmark.png' %}" alt="Beauty Go">
       </a>
+      {% if user.is_authenticated and user.perfil_administrador or user.is_superuser %}
+        <div class="admin-header-label"><span>Panel administrativo</span><strong>Postulaciones y liquidaciones</strong></div>
+      {% endif %}
       <nav class="main-nav" aria-label="Navegación principal">
-        <button class="nav-button quick-booking-trigger" type="button" aria-controls="quick-booking-modal" aria-expanded="false">Agendamiento rápido</button>
-        {% if user.is_authenticated %}
-          <a href="{% url 'reservas' %}">Mis reservas</a>
-          <a href="{% url 'favoritos' %}">Favoritos</a>
-          <a href="{% url 'datos_usuario' %}">Mi cuenta</a>
-          <form class="inline-form" method="post" action="{% url 'logout' %}">
+        {% if user.is_authenticated and user.perfil_administrador or user.is_superuser %}
+          <form class="inline-form admin-logout" method="post" action="{% url 'logout' %}">
             {% csrf_token %}
-            <button class="nav-button" type="submit">Salir</button>
+            <button class="nav-button" type="submit">Cerrar sesión</button>
           </form>
+          <a class="admin-close" href="{% url 'home' %}" aria-label="Volver al sitio">×</a>
+        {% else %}
+          <button class="nav-button quick-booking-trigger" type="button" aria-controls="quick-booking-modal" aria-expanded="false">Agendamiento rápido</button>
+        {% endif %}
+        {% if user.is_authenticated %}
+          {% if not user.perfil_administrador and not user.is_superuser %}
+            <a href="{% url 'reservas' %}">Mis reservas</a>
+            <a href="{% url 'favoritos' %}">Favoritos</a>
+            <a href="{% url 'datos_usuario' %}">Mi cuenta</a>
+            <form class="inline-form" method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button class="nav-button" type="submit">Salir</button>
+            </form>
+          {% endif %}
+          {% if user.is_superuser or user.perfil_administrador %}
+            {% if request.resolver_match.url_name != 'vista_administrador' %}
+            <a href="{% url 'vista_administrador' %}">Panel admin</a>
+            {% endif %}
+          {% endif %}
         {% else %}
           <a href="{% url 'login' %}">Ingresar</a>
           <a class="nav-cta" href="{% url 'registro' %}">Crear cuenta</a>

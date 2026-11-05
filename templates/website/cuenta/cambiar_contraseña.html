@@ -1,16 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cambio de Contraseña</title>
-</head>
-<body>
-    <h2>Cambiar Contraseña</h2>
-    <form method="post">
+{% extends 'website/base.html' %}
+{% block title %}Cambiar contraseña · Beauty Go{% endblock %}
+{% block content %}
+<section class="form-page">
+  <div class="form-card">
+    <h1>Cambiar contraseña</h1>
+    <form class="styled-form" method="post">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">Guardar Cambios</button>
+        <button class="cta-button" type="submit">Guardar cambios</button>
     </form>
-</body>
-</html>
+  </div>
+</section>
+{% endblock %}

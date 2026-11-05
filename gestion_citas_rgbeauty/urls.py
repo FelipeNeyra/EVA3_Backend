@@ -31,7 +31,7 @@ urlpatterns = [
     #Registro y Login
     path('registro/', vistas.vista_registro, name='registro'),
     path('login/',
-        auth_views.LoginView.as_view(
+        vistas.BeautyGoLoginView.as_view(
             template_name='website/login.html',
             authentication_form=CorreoAuthenticationForm,
         ),
@@ -54,5 +54,6 @@ urlpatterns = [
      #Sección de Administración
     path('administración/', vistas.vista_administrador, name='vista_administrador'),
     path('administración/<int:pk>/estado/', vistas.vista_aprobar_rechazar_solicitud, name='estado_solicitud'),
+    path('administración/<int:pk>/suscripcion/', vistas.vista_actualizar_suscripcion, name='actualizar_suscripcion'),
 
 ]

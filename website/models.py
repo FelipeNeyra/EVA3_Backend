@@ -35,7 +35,10 @@ class Cliente(models.Model):
 class Prestador(models.Model):
     idprestador = models.AutoField(db_column='idPrestador', primary_key=True)
     especialidad = models.CharField(max_length=45)
-    numCertificacion_sanitaria = models.CharField(db_column='idCertificacion_Sanitaria', max_length=45)
+    numCertificacion_sanitaria = models.CharField(
+        db_column='id_certificacion_sanitaria',
+        max_length=45,
+    )
     radio_cobertura = models.CharField(max_length=100)
     estado_aprobacion = models.BooleanField(null=True, blank=True)
     nivel_acceso = models.CharField(
@@ -56,6 +59,45 @@ class Prestador(models.Model):
 
     class Meta:
         db_table = 'prestador'
+
+
+class SuscripcionPrestador(models.Model):
+    PENDIENTE = 'pendiente'
+    PAGADA = 'pagada'
+    ESTADOS = [
+        (PENDIENTE, 'Pendiente'),
+        (PAGADA, 'Pagada'),
+    ]
+
+    prestador = models.ForeignKey(
+        Prestador,
+        on_delete=models.CASCADE,
+        related_name='suscripciones',
+    )
+    periodo = models.DateField()
+    monto = models.PositiveIntegerField(default=5000)
+    estado = models.CharField(max_length=10, choices=ESTADOS, default=PENDIENTE)
+    fecha_pago = models.DateTimeField(null=True, blank=True)
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='suscripciones_registradas',
+    )
+
+    class Meta:
+        db_table = 'suscripcion_prestador'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['prestador', 'periodo'],
+                name='unique_suscripcion_prestador_periodo',
+            )
+        ]
+        ordering = ['-periodo', 'prestador_id']
+
+    def __str__(self):
+        return f'{self.prestador} · {self.periodo:%Y-%m}'
 
 
 class Administrador(models.Model):

@@ -1,68 +1,191 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administración</title>
-</head>
-<body>
-    <h1>
-        Bienvenid@ {{ user.username }}
-    </h2>
-    <p>
-        Para Cerrar su sesión, presione el botón
-        <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit">Cerrar Sesión</button>
-        </form>
-    </p>
-    <main>
-        <p>Listado de Solicitudes</p>
-        {% if messages %}
-            <ul>
-                {% for message in messages %}
-                    <li class="{{ message.tags }}">{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-        <h2>Solicitudes en espera</h2>
-        {% for solicitud in solicitudes_espera %}
-                Solicitud de {{ solicitud.usuario.username }} ({{ solicitud.usuario.email }})
-                <ul>
-                    <li>Especialidad: {{ solicitud.especialidad }}</li>
-                    <li>N° de Certificación Sanitaria: {{ solicitud.numCertificacion_sanitaria }}</li>
-                    <li>Estado de aprobación: En evaluación</li>
-                    <form method="post" action="{% url 'estado_solicitud' solicitud.pk %}">
-                        {% csrf_token %}
-                        <button type="submit" name="estado" value="True">Aprobar</button>
-                        <button type="submit" name="estado" value="False">Rechazar</button>
-                    </form>
-                </ul>
-        {% empty %}
-            <p>No se encontraron solicitudes.</p>
-        {% endfor %}
+{% extends 'website/base.html' %}
+{% block title %}Panel administrativo · Beauty Go{% endblock %}
+{% block page_shell_class %}admin-shell{% endblock %}
+{% block content %}
+<section class="admin-dashboard">
+  <aside class="admin-sidebar">
+    <span class="admin-sidebar-label">Gestión administrativa</span>
+    <nav class="admin-section-nav" aria-label="Secciones administrativas">
+      <a href="{% url 'vista_administrador' %}?section=liquidaciones" class="{% if section == 'liquidaciones' %}active{% endif %}" {% if section == 'liquidaciones' %}aria-current="page"{% endif %}>
+        <span class="admin-nav-icon">▤</span><span>Liquidaciones</span><b>{{ liquidations|length }}</b>
+      </a>
+      <a href="{% url 'vista_administrador' %}?section=solicitudes" class="{% if section == 'solicitudes' %}active{% endif %}" {% if section == 'solicitudes' %}aria-current="page"{% endif %}>
+        <span class="admin-nav-icon">♙</span><span>Solicitudes</span><b>{{ pending_request_count }}</b>
+      </a>
+      <a href="{% url 'vista_administrador' %}?section=suscripciones" class="{% if section == 'suscripciones' %}active{% endif %}" {% if section == 'suscripciones' %}aria-current="page"{% endif %}>
+        <span class="admin-nav-icon">✓</span><span>Pago de suscripciones</span><b>{{ pending_subscription_count }}</b>
+      </a>
+    </nav>
 
-        <h2>Solicitudes aprobadas</h2>
-        {% for solicitud in solicitudes_aprobadas %}
-                Solicitud de {{ solicitud.usuario.username }} ({{ solicitud.usuario.email }})
-                <ul>
-                    <li>Especialidad: {{ solicitud.especialidad }}</li>
-                    <li>N° de Certificación Sanitaria: {{ solicitud.numCertificacion_sanitaria }}</li>
-                </ul>
+    {% if section == 'solicitudes' %}
+      <div class="admin-sidebar-divider"></div>
+      <span class="admin-sidebar-label">Bandeja de entrada</span>
+      <div class="admin-sidebar-title"><h2>Solicitudes</h2><span>{{ pending_request_count }}</span></div>
+      <div class="admin-request-list">
+        {% for provider in pending_requests %}
+          <a class="admin-request-card {% if selected_provider.pk == provider.pk %}selected{% endif %}" href="{% url 'vista_administrador' %}?section=solicitudes&prestador={{ provider.pk }}">
+            <span class="admin-request-card-top"><strong>{{ provider.usuario.get_full_name|default:provider.usuario.username }}</strong><i class="status-pill pending">Pendiente</i></span>
+            <span>{{ provider.especialidad }}</span>
+            <small>{{ provider.usuario.date_joined|date:"j M Y" }}</small>
+          </a>
         {% empty %}
-            <p>No se encontraron solicitudes.</p>
+          <p class="admin-empty-note">No hay postulaciones pendientes.</p>
         {% endfor %}
+      </div>
+      <div class="admin-sidebar-counts">
+        <span>Aprobadas <b>{{ approved_provider_count }}</b></span>
+        <span>Rechazadas <b>{{ rejected_request_count }}</b></span>
+      </div>
+    {% elif section == 'suscripciones' %}
+      <div class="admin-sidebar-divider"></div>
+      <span class="admin-sidebar-label">Periodo actual</span>
+      <div class="admin-period-card">
+        <strong>{{ current_period|date:"F Y" }}</strong>
+        <span>Cuota mensual por profesional</span>
+        <b>$5.000</b>
+        <small>Los pagos se registran manualmente; esta vista no realiza cobros.</small>
+      </div>
+    {% else %}
+      <div class="admin-sidebar-divider"></div>
+      <span class="admin-sidebar-label">Resumen</span>
+      <div class="admin-period-card">
+        <strong>Liquidaciones</strong>
+        <span>Registros asociados a servicios y profesionales.</span>
+        <b>{{ liquidations|length }}</b>
+      </div>
+    {% endif %}
+  </aside>
 
-        <h2>Solicitudes rechazadas</h2>
-        {% for solicitud in solicitudes_rechazadas %}
-                Solicitud de {{ solicitud.usuario.username }} ({{ solicitud.usuario.email }})
-                <ul>
-                    <li>Especialidad: {{ solicitud.especialidad }}</li>
-                    <li>N° de Certificación Sanitaria: {{ solicitud.numCertificacion_sanitaria }}</li>
-                </ul>
-        {% empty %}
-            <p>No se encontraron solicitudes.</p>
+  <div class="admin-main">
+    {% if messages %}
+      <div class="messages admin-messages" role="status">
+        {% for message in messages %}
+          <div class="message {{ message.tags }}">{{ message }}</div>
         {% endfor %}
-    </main>
-</body>
-</html>
+      </div>
+    {% endif %}
+
+    {% if section == 'solicitudes' %}
+      {% if selected_provider %}
+        <section class="admin-provider-detail">
+          <header class="admin-provider-heading">
+            <div>
+              <span class="admin-sidebar-label">Perfil profesional</span>
+              <h1>{{ selected_provider.usuario.get_full_name|default:selected_provider.usuario.username }}</h1>
+              <p>{{ selected_provider.especialidad }} · {{ selected_provider.radio_cobertura }}</p>
+            </div>
+            <div class="admin-provider-actions">
+              {% if selected_provider.estado_aprobacion is None %}
+                <span class="status-pill pending">Revisión pendiente</span>
+                <form method="post" action="{% url 'estado_solicitud' selected_provider.pk %}">
+                  {% csrf_token %}
+                  <button class="admin-action-button reject" type="submit" name="estado" value="False">Rechazar</button>
+                  <button class="admin-action-button approve" type="submit" name="estado" value="True">Aprobar profesional</button>
+                </form>
+              {% elif selected_provider.estado_aprobacion %}
+                <span class="status-pill approved">Aprobada</span>
+              {% else %}
+                <span class="status-pill rejected">Rechazada</span>
+              {% endif %}
+            </div>
+          </header>
+
+          <div class="admin-provider-facts">
+            <article><span>Especialidad</span><strong>{{ selected_provider.especialidad }}</strong></article>
+            <article><span>Correo</span><strong>{{ selected_provider.usuario.email|default:"No informado" }}</strong></article>
+            <article><span>Certificación sanitaria</span><strong>{{ selected_provider.numCertificacion_sanitaria }}</strong></article>
+            <article><span>Radio de cobertura</span><strong>{{ selected_provider.radio_cobertura }}</strong></article>
+            <article><span>Cuenta creada</span><strong>{{ selected_provider.usuario.date_joined|date:"j \\d\\e F \\d\\e Y, H:i" }}</strong></article>
+            <article><span>Usuario</span><strong>{{ selected_provider.usuario.username }}</strong></article>
+          </div>
+
+          <section class="admin-services-card">
+            <span class="admin-sidebar-label">Servicios ofrecidos</span>
+            {% for service in selected_provider.servicio_set.all %}
+              <p>{{ service.nombre }} · {{ service.duracion }} min · ${{ service.precio_base }}</p>
+            {% empty %}
+              <p>Aún no hay servicios asociados a este profesional.</p>
+            {% endfor %}
+          </section>
+        </section>
+      {% else %}
+        <section class="admin-empty-state">
+          <span class="admin-sidebar-label">Bandeja de entrada</span>
+          <h1>No hay solicitudes todavía</h1>
+          <p>Cuando un profesional envíe su postulación, podrás revisar sus datos aquí y aprobarla o rechazarla.</p>
+        </section>
+      {% endif %}
+    {% elif section == 'suscripciones' %}
+      <section class="admin-section-heading">
+        <span class="admin-sidebar-label">Gestión de suscripciones</span>
+        <h1>Pagos mensuales</h1>
+        <p>Periodo: {{ current_period|date:"F Y" }} · Valor mensual: <strong>$5.000 CLP</strong></p>
+      </section>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Profesional</th><th>Especialidad</th><th>Estado del periodo</th><th>Último registro</th><th>Acción</th></tr></thead>
+          <tbody>
+            {% for row in subscription_rows %}
+              <tr>
+                <td><strong>{{ row.prestador.usuario.get_full_name|default:row.prestador.usuario.username }}</strong><small>{{ row.prestador.usuario.email }}</small></td>
+                <td>{{ row.prestador.especialidad }}</td>
+                <td>
+                  {% if row.subscription and row.subscription.estado == 'pagada' %}
+                    <span class="status-pill approved">Pagada · ${{ row.subscription.monto }}</span>
+                  {% else %}
+                    <span class="status-pill pending">Pendiente · $5.000</span>
+                  {% endif %}
+                </td>
+                <td>{% if row.subscription and row.subscription.fecha_pago %}{{ row.subscription.fecha_pago|date:"j M Y, H:i" }}{% else %}—{% endif %}</td>
+                <td>
+                  <form class="admin-subscription-form" method="post" action="{% url 'actualizar_suscripcion' row.prestador.pk %}">
+                    {% csrf_token %}
+                    {% if row.subscription and row.subscription.estado == 'pagada' %}
+                      <button class="admin-action-button reject" type="submit" name="estado" value="pendiente">Marcar pendiente</button>
+                    {% else %}
+                      <button class="admin-action-button approve" type="submit" name="estado" value="pagada">Registrar pago</button>
+                    {% endif %}
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td class="admin-table-empty" colspan="5">No hay profesionales aprobados para este periodo.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="admin-payment-disclaimer">Registro administrativo manual. No se procesa ni confirma un cobro bancario desde Beauty Go.</p>
+    {% else %}
+      <section class="admin-section-heading">
+        <span class="admin-sidebar-label">Gestión financiera</span>
+        <h1>Liquidaciones</h1>
+        <p>Montos registrados para profesionales y comisiones de la plataforma.</p>
+      </section>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>N°</th><th>Servicios y profesionales</th><th>Monto bruto</th><th>Comisión</th><th>Neto profesional</th></tr></thead>
+          <tbody>
+            {% for liquidation in liquidations %}
+              <tr>
+                <td><strong>#{{ liquidation.idliquidacion }}</strong></td>
+                <td>
+                  {% for service in liquidation.servicios.all %}
+                    <strong>{{ service.nombre }}</strong><small>{{ service.prestador_idprestador.usuario.get_full_name|default:service.prestador_idprestador.usuario.username }}</small>
+                  {% empty %}
+                    <small>Sin servicios asociados</small>
+                  {% endfor %}
+                </td>
+                <td>${{ liquidation.monto_bruto_total|floatformat:0 }}</td>
+                <td>{{ liquidation.porcentaje_comision|floatformat:0 }}%<small>${{ liquidation.monto_comision_spa|floatformat:0 }}</small></td>
+                <td><strong>${{ liquidation.monto_neto_prestador|floatformat:0 }}</strong></td>
+              </tr>
+            {% empty %}
+              <tr><td class="admin-table-empty" colspan="5">Todavía no hay liquidaciones registradas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

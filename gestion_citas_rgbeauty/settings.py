@@ -78,7 +78,7 @@ WSGI_APPLICATION = 'gestion_citas_rgbeauty.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'eva3_basedatos',
+        'NAME': 'gestion_rgbeauty',
         'USER': 'root',
         'PASSWORD': '123456',
         'HOST': 'localhost',
