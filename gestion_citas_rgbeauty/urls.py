@@ -50,6 +50,7 @@ urlpatterns = [
 
     #Sección de Prestadores
     path('home/solicitudes', vistas.vista_solicitud_prestadores, name='solicitud_prestador'),
+    path('prestador/', vistas.vista_prestador, name='vista_prestador'),
 
      #Sección de Administración
     path('administración/', vistas.vista_administrador, name='vista_administrador'),

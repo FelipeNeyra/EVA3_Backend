@@ -19,7 +19,7 @@ def quick_booking(request):
 
     for service in services:
         provider = service.prestador_idprestador
-        specialty = f'{provider.especialidad} {service.nombre}'.lower()
+        specialty = f'{service.categoria} {provider.especialidad} {service.nombre}'.lower()
         categories = {
             'peluqueria': ('peluquer', 'corte', 'brushing'),
             'unas': ('uña', 'manicure', 'pedicure'),

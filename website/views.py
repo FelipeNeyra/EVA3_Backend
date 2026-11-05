@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 
 from django.shortcuts import redirect, render, get_object_or_404
+from django.http import Http404
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -11,9 +12,11 @@ from .forms import (
     RegistroForm,
     RegistroClienteForm,
     RegistroPrestadorForm,
+    ServicioForm,
 )
 from .models import (
     Administrador,
+    Cliente,
     Liquidacion,
     Pago,
     Prestador,
@@ -95,18 +98,31 @@ def _format_clp(amount):
     return f'${amount:,.0f}'.replace(',', '.')
 
 
+def _service_image(category, index=0):
+    category_keys = _catalog_category_keys(category)
+    if category_keys:
+        for item in SERVICE_CATALOG:
+            if category_keys[0] in _catalog_category_keys(item['category']):
+                return item['image']
+    return SERVICE_CATALOG[index % len(SERVICE_CATALOG)]['image']
+
+
 def _filtered_services(request):
     query = request.GET.get('q', '').strip().lower()
     category = request.GET.get('categoria', '').strip().lower()
     database_services = Servicio.objects.select_related(
         'prestador_idprestador__usuario'
+    ).filter(
+        prestador_idprestador__estado_aprobacion=True,
+        prestador_idprestador__usuario__isnull=False,
     ).order_by('idservicio')
     services = [
         {
             'id': service.idservicio,
-            'category': service.prestador_idprestador.especialidad.split(' y ')[0],
+            'category': service.categoria or service.prestador_idprestador.especialidad.split(' y ')[0],
             'category_keys': _service_category_keys(service),
             'name': service.nombre,
+            'description': service.descripcion,
             'provider': service.prestador_idprestador.usuario.get_full_name()
             or service.prestador_idprestador.usuario.username,
             'duration': f'{service.duracion} min',
@@ -115,7 +131,10 @@ def _filtered_services(request):
             'distance': service.prestador_idprestador.radio_cobertura,
             'rating': '5.0',
             'badge': 'Disponible ahora',
-            'image': SERVICE_CATALOG[index % len(SERVICE_CATALOG)]['image'],
+            'image': _service_image(
+                service.categoria or service.prestador_idprestador.especialidad,
+                index,
+            ),
         }
         for index, service in enumerate(database_services)
     ]
@@ -141,7 +160,8 @@ def _filtered_services(request):
 def _service_category_keys(service):
     value = unicode_normalize(
         'NFKD',
-        f'{service.prestador_idprestador.especialidad} {service.nombre}',
+        f'{service.categoria} {service.prestador_idprestador.especialidad} '
+        f'{service.nombre} {service.descripcion}',
     ).encode('ascii', 'ignore').decode().lower()
     terms = {
         'peluqueria': ('peluquer', 'corte', 'brushing'),
@@ -205,9 +225,19 @@ def reservas(request):
         contact_phone = request.POST.get('contact_phone', '').strip()
         address = request.POST.get('address', '').strip()
         payment_status = request.POST.get('payment_status')
-        if not all((cliente, service_id, selected_date, selected_time, contact_name,
+        is_administrator = (
+            request.user.is_superuser
+            or Administrador.objects.filter(usuario_id=request.user.pk).exists()
+        )
+        if not all((service_id, selected_date, selected_time, contact_name,
                     contact_email, contact_phone, address)):
             messages.error(request, 'Completa todos los datos de la reserva.')
+            return redirect('home')
+        if cliente is None and not is_administrator:
+            messages.error(
+                request,
+                'Debes tener un perfil de cliente para agendar un servicio.',
+            )
             return redirect('home')
         if '@' not in contact_email or len(contact_phone) < 8:
             messages.error(request, 'Revisa tu correo y teléfono antes de continuar.')
@@ -215,34 +245,55 @@ def reservas(request):
         if payment_status != 'success':
             messages.error(request, 'El pago no fue aprobado. La reserva no fue creada.')
             return redirect('home')
-        service = get_object_or_404(Servicio, pk=service_id)
+        service = get_object_or_404(
+            Servicio,
+            pk=service_id,
+            prestador_idprestador__estado_aprobacion=True,
+        )
         try:
             reservation_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
             reservation_time = datetime.strptime(selected_time, '%H:%M').time()
         except ValueError:
             messages.error(request, 'La fecha u hora seleccionada no es válida.')
             return redirect('home')
-        reservation = Reserva.objects.create(
-            idreserva=(Reserva.objects.order_by('-idreserva').values_list(
-                'idreserva', flat=True
-            ).first() or 0) + 1,
-            fecha=reservation_date,
-            hora_bloque=timezone.make_aware(
-                datetime.combine(reservation_date, reservation_time)
-            ),
-            direccion_visita=address[:45],
-            estado='Pendiente',
-            cliente_idcliente=cliente,
-        )
-        reservation.servicios.add(service)
-        Pago.objects.create(
-            idpago=(Pago.objects.order_by('-idpago').values_list(
-                'idpago', flat=True
-            ).first() or 0) + 1,
-            monto_total=round(service.precio_base * 0.3),
-            metodo_pago='Simulación Webpay aprobada',
-            reserva_idreserva=reservation,
-        )
+        with transaction.atomic():
+            if cliente is None:
+                account_email = request.user.email or contact_email
+                if Cliente.objects.filter(correo__iexact=account_email).exists():
+                    messages.error(
+                        request,
+                        'El correo de esta cuenta ya está asociado a otro perfil '
+                        'de cliente. Contacta al equipo para revisar la cuenta.',
+                    )
+                    return redirect('home')
+                cliente = Cliente.objects.create(
+                    nombre=contact_name[:45],
+                    correo=account_email,
+                    direccion_domicilio=address[:45],
+                    telefono=contact_phone[:12],
+                    usuario=request.user,
+                )
+            reservation = Reserva.objects.create(
+                idreserva=(Reserva.objects.order_by('-idreserva').values_list(
+                    'idreserva', flat=True
+                ).first() or 0) + 1,
+                fecha=reservation_date,
+                hora_bloque=timezone.make_aware(
+                    datetime.combine(reservation_date, reservation_time)
+                ),
+                direccion_visita=address[:45],
+                estado='Pendiente',
+                cliente_idcliente=cliente,
+            )
+            reservation.servicios.add(service)
+            Pago.objects.create(
+                idpago=(Pago.objects.order_by('-idpago').values_list(
+                    'idpago', flat=True
+                ).first() or 0) + 1,
+                monto_total=round(service.precio_base * 0.3),
+                metodo_pago='Simulación Webpay aprobada',
+                reserva_idreserva=reservation,
+            )
         return redirect(f'/?reserva=confirmada&id={reservation.idreserva}')
 
     cliente = getattr(request.user, 'perfil_cliente', None)
@@ -353,6 +404,14 @@ class CambiarPasswordView(SuccessMessageMixin, PasswordChangeView):
 #Vista de Solicitud para Prestadores
 @login_required
 def vista_solicitud_prestadores(request):
+    if not hasattr(request.user, 'perfil_cliente'):
+        messages.error(
+            request,
+            'Para postular como prestador primero debes completar tu registro '
+            'como cliente.',
+        )
+        return redirect('datos_usuario')
+
     if hasattr(request.user, 'perfil_prestador'):
         prestador = request.user.perfil_prestador
 
@@ -362,6 +421,13 @@ def vista_solicitud_prestadores(request):
                 'Ya tienes una solicitud enviada y en estado de evaluación.',
             )
             return redirect('home')
+        if prestador.estado_aprobacion:
+            return redirect('vista_prestador')
+        messages.info(
+            request,
+            'Tu solicitud fue rechazada. Contacta al equipo para obtener ayuda.',
+        )
+        return redirect('home')
     
     prestador_form = RegistroPrestadorForm(request.POST or None)
 
@@ -372,6 +438,10 @@ def vista_solicitud_prestadores(request):
             prestador = prestador_form.save(commit=False)
             prestador.usuario = current_user
             prestador.save()
+            messages.success(
+                request,
+                'Tu solicitud fue enviada y está pendiente de revisión.',
+            )
             return redirect('home')
 
     return render(
@@ -381,6 +451,175 @@ def vista_solicitud_prestadores(request):
             'prestador_form': prestador_form
         },
     )
+
+
+@login_required
+def vista_prestador(request):
+    prestador = getattr(request.user, 'perfil_prestador', None)
+    if prestador is None:
+        raise PermissionDenied
+
+    section = request.GET.get('section', 'servicios')
+    if section not in {'servicios', 'reservas', 'suscripcion'}:
+        section = 'servicios'
+
+    service_form = ServicioForm()
+    editing_service = None
+    requested_service_id = request.GET.get('editar')
+    if requested_service_id and section == 'servicios':
+        if not requested_service_id.isdigit():
+            raise Http404
+        editing_service = get_object_or_404(
+            Servicio,
+            pk=int(requested_service_id),
+            prestador_idprestador=prestador,
+        )
+        service_form = ServicioForm(instance=editing_service)
+
+    if request.method == 'POST':
+        if prestador.estado_aprobacion is not True:
+            messages.error(
+                request,
+                'Solo los perfiles aprobados pueden administrar servicios, '
+                'reservas y suscripciones.',
+            )
+            return redirect('vista_prestador')
+
+        action = request.POST.get('action')
+        if action == 'pagar_suscripcion':
+            current_period = timezone.localdate().replace(day=1)
+            subscription, _ = SuscripcionPrestador.objects.get_or_create(
+                prestador=prestador,
+                periodo=current_period,
+                defaults={'monto': MONTHLY_SUBSCRIPTION_PRICE},
+            )
+            if subscription.estado == SuscripcionPrestador.PAGADA:
+                messages.info(request, 'La suscripción de este mes ya está pagada.')
+            else:
+                subscription.estado = SuscripcionPrestador.PAGADA
+                subscription.monto = MONTHLY_SUBSCRIPTION_PRICE
+                subscription.fecha_pago = timezone.now()
+                subscription.registrado_por = request.user
+                subscription.save(update_fields=[
+                    'estado',
+                    'monto',
+                    'fecha_pago',
+                    'registrado_por',
+                ])
+                messages.success(
+                    request,
+                    'Pago simulado correctamente. Tu suscripción está al día.',
+                )
+            return redirect(f"{reverse_lazy('vista_prestador')}?section=suscripcion")
+        elif action == 'guardar_servicio':
+            service_id = request.POST.get('service_id')
+            if service_id and not service_id.isdigit():
+                messages.error(request, 'El servicio seleccionado no es válido.')
+                return redirect('vista_prestador')
+            editing_service = (
+                get_object_or_404(
+                    Servicio,
+                    pk=int(service_id),
+                    prestador_idprestador=prestador,
+                )
+                if service_id else None
+            )
+            service_form = ServicioForm(
+                request.POST,
+                instance=editing_service,
+            )
+            if service_form.is_valid():
+                with transaction.atomic():
+                    service = service_form.save(commit=False)
+                    if editing_service is None:
+                        service.idservicio = (
+                            Servicio.objects.order_by('-idservicio')
+                            .values_list('idservicio', flat=True)
+                            .first() or 0
+                        ) + 1
+                    service.prestador_idprestador = prestador
+                    service.save()
+                messages.success(request, 'El servicio fue guardado correctamente.')
+                return redirect('vista_prestador')
+            section = 'servicios'
+        elif action == 'actualizar_reserva':
+            status = request.POST.get('estado')
+            reservation_id = request.POST.get('reserva_id', '')
+            if not reservation_id.isdigit():
+                messages.error(request, 'La reserva seleccionada no es válida.')
+                return redirect(f"{reverse_lazy('vista_prestador')}?section=reservas")
+            if status not in {'Confirmada', 'Rechazada', 'Completada'}:
+                messages.error(request, 'El estado de la reserva no es válido.')
+            else:
+                reservation = get_object_or_404(
+                    Reserva,
+                    pk=int(reservation_id),
+                    servicios__prestador_idprestador=prestador,
+                )
+                reservation.estado = status
+                reservation.save(update_fields=['estado'])
+                messages.success(request, 'El estado de la reserva fue actualizado.')
+            return redirect(f"{reverse_lazy('vista_prestador')}?section=reservas")
+        else:
+            messages.error(request, 'La acción solicitada no es válida.')
+            return redirect('vista_prestador')
+
+    provider_services = list(
+        Servicio.objects.filter(prestador_idprestador=prestador)
+        .order_by('nombre')
+    )
+    services = [
+        {
+            'service': service,
+            'image': _service_image(service.categoria, index),
+            'price_display': _format_clp(service.precio_base),
+        }
+        for index, service in enumerate(provider_services)
+    ]
+    reservation_list = list(
+        Reserva.objects.filter(
+            servicios__prestador_idprestador=prestador,
+        ).distinct().select_related('cliente_idcliente').prefetch_related('servicios')
+        .order_by('-fecha', '-hora_bloque')
+    )
+    for reservation in reservation_list:
+        reservation.provider_services = [
+            service for service in reservation.servicios.all()
+            if service.prestador_idprestador_id == prestador.pk
+        ]
+    current_period = timezone.localdate().replace(day=1)
+    subscription = SuscripcionPrestador.objects.filter(
+        prestador=prestador,
+        periodo=current_period,
+    ).first()
+    subscription_history = []
+    for history_item in SuscripcionPrestador.objects.filter(
+        prestador=prestador,
+    ).exclude(periodo=current_period):
+        subscription_history.append({
+            'subscription': history_item,
+            'amount_display': _format_clp(history_item.monto),
+            'is_overdue': (
+                history_item.periodo < current_period
+                and history_item.estado == SuscripcionPrestador.PENDIENTE
+            ),
+        })
+
+    return render(request, 'website/vista_prestador.html', {
+        'prestador': prestador,
+        'section': section,
+        'service_form': service_form,
+        'editing_service': editing_service,
+        'services': services,
+        'service_count': len(services),
+        'reservations': reservation_list,
+        'reservation_count': len(reservation_list),
+        'current_period': current_period,
+        'subscription': subscription,
+        'subscription_history': subscription_history,
+        'monthly_subscription_price': _format_clp(MONTHLY_SUBSCRIPTION_PRICE),
+    })
+
 
 # --------- SECCIÓN DE ADMINISTRADORES -------
 @admin_required

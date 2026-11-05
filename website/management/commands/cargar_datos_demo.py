@@ -91,6 +91,16 @@ class Command(BaseCommand):
                     'nivel_acceso': 'prestador',
                 },
             )
+            Cliente.objects.update_or_create(
+                usuario=user,
+                defaults={
+                    'nombre': name,
+                    'correo': email,
+                    'direccion_domicilio': 'Copiapó',
+                    'telefono': '+56912345678',
+                    'nivel_acceso': 'cliente',
+                },
+            )
             providers.append(provider)
 
         service_data = [

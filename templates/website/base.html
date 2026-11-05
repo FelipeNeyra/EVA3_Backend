@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'website/css/styles.css' %}?v=20261104-admin1">
+  <link rel="stylesheet" href="{% static 'website/css/styles.css' %}?v=20261105-provider2">
   <style>
     .brand-monogram { width: 48px; height: 48px; object-fit: contain; }
     .brand-wordmark { width: 168px; height: auto; }
@@ -76,26 +76,35 @@
 </head>
 <body>
   <main class="page-shell {% block page_shell_class %}{% endblock %}">
-    <header class="site-header">
+    <header class="site-header{% if user.is_authenticated and user.perfil_prestador and not user.perfil_administrador and not user.is_superuser %} provider-site-header{% endif %}">
       <a class="brand" href="{% url 'home' %}">
         <img class="brand-monogram" src="{% static 'website/images/beauty-go-monogram.png' %}" alt="">
         <img class="brand-wordmark" src="{% static 'website/images/beauty-go-wordmark.png' %}" alt="Beauty Go">
       </a>
       {% if user.is_authenticated and user.perfil_administrador or user.is_superuser %}
         <div class="admin-header-label"><span>Panel administrativo</span><strong>Postulaciones y liquidaciones</strong></div>
+      {% elif user.is_authenticated and user.perfil_prestador and request.resolver_match.url_name == 'vista_prestador' %}
+        <div class="admin-header-label"><span>Portal de prestadores</span><strong>{{ user.get_full_name|default:user.username }}</strong></div>
       {% endif %}
       <nav class="main-nav" aria-label="Navegación principal">
         {% if user.is_authenticated and user.perfil_administrador or user.is_superuser %}
+          <a class="dashboard-booking-link" href="{% url 'home' %}">Ir a la página web</a>
           <form class="inline-form admin-logout" method="post" action="{% url 'logout' %}">
             {% csrf_token %}
             <button class="nav-button" type="submit">Cerrar sesión</button>
           </form>
           <a class="admin-close" href="{% url 'home' %}" aria-label="Volver al sitio">×</a>
-        {% else %}
+        {% elif user.is_authenticated and user.perfil_prestador %}
+          <a class="provider-role-link" href="{% url 'vista_prestador' %}">Prestador</a>
+          <form class="inline-form provider-logout" method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="nav-button" type="submit">Cerrar sesión</button>
+          </form>
+          <a class="provider-address-link" href="{% url 'datos_usuario' %}" title="Agregar o editar dirección de atención">
+            <span aria-hidden="true">⌖</span><span>Agregar dirección de atención</span>
+          </a>
+        {% elif user.is_authenticated %}
           <button class="nav-button quick-booking-trigger" type="button" aria-controls="quick-booking-modal" aria-expanded="false">Agendamiento rápido</button>
-        {% endif %}
-        {% if user.is_authenticated %}
-          {% if not user.perfil_administrador and not user.is_superuser %}
             <a href="{% url 'reservas' %}">Mis reservas</a>
             <a href="{% url 'favoritos' %}">Favoritos</a>
             <a href="{% url 'datos_usuario' %}">Mi cuenta</a>
@@ -103,15 +112,15 @@
               {% csrf_token %}
               <button class="nav-button" type="submit">Salir</button>
             </form>
-          {% endif %}
-          {% if user.is_superuser or user.perfil_administrador %}
-            {% if request.resolver_match.url_name != 'vista_administrador' %}
-            <a href="{% url 'vista_administrador' %}">Panel admin</a>
-            {% endif %}
-          {% endif %}
         {% else %}
+          <button class="nav-button quick-booking-trigger" type="button" aria-controls="quick-booking-modal" aria-expanded="false">Agendamiento rápido</button>
           <a href="{% url 'login' %}">Ingresar</a>
           <a class="nav-cta" href="{% url 'registro' %}">Crear cuenta</a>
+        {% endif %}
+        {% if user.is_authenticated and user.is_superuser or user.is_authenticated and user.perfil_administrador %}
+          {% if request.resolver_match.url_name != 'vista_administrador' %}
+            <a href="{% url 'vista_administrador' %}">Panel admin</a>
+          {% endif %}
         {% endif %}
       </nav>
     </header>
@@ -159,6 +168,7 @@
     (() => {
       const modal = document.getElementById('quick-booking-modal');
       const trigger = document.querySelector('.quick-booking-trigger');
+      if (!modal || !trigger) return;
       const close = modal.querySelector('.quick-booking-close');
       const categories = modal.querySelectorAll('.quick-category');
       const providerList = modal.querySelector('.quick-provider-list');

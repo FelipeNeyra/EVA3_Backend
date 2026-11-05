@@ -147,8 +147,24 @@ class Reserva(models.Model):
 
 
 class Servicio(models.Model):
+    CATEGORIAS = [
+        ('Peluquería', 'Peluquería'),
+        ('Uñas', 'Uñas'),
+        ('Faciales', 'Faciales'),
+        ('Cejas', 'Cejas'),
+        ('Pestañas', 'Pestañas'),
+        ('Otros', 'Otros'),
+    ]
+
     idservicio = models.IntegerField(db_column='idServicio', primary_key=True)
+    categoria = models.CharField(
+        max_length=30,
+        choices=CATEGORIAS,
+        blank=True,
+        default='',
+    )
     nombre = models.CharField(max_length=45)
+    descripcion = models.TextField(max_length=500, blank=True, default='')
     duracion = models.IntegerField()
     precio_base = models.IntegerField()
     prestador_idprestador = models.ForeignKey(

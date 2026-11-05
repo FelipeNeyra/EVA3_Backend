@@ -34,9 +34,9 @@
         <div class="card-image" style="background-image:url('{{ service.image }}')"><span class="badge">{{ service.badge }}</span></div>
         <div class="card-body">
           <div class="card-meta"><span>{{ service.category }}</span><span>★ {{ service.rating }}</span></div>
-          <h3>{{ service.name }}</h3><p>{{ service.provider }} · {{ service.duration }}</p>
+          <h3>{{ service.name }}</h3><p>{{ service.provider }} · {{ service.duration }}</p>{% if service.description %}<p class="service-description">{{ service.description }}</p>{% endif %}
           <div class="card-info"><span>◷ {{ service.time }}</span><span>{{ service.distance }}</span></div>
-          <div class="card-bottom"><span>Desde <strong>{{ service.price }}</strong></span>{% if user.is_authenticated %}<button class="booking-trigger" type="button" data-service-id="{{ service.id }}" data-service-name="{{ service.name }}" data-service-provider="{{ service.provider }}" data-service-price="{{ service.price }}" data-service-image="{{ service.image }}">Reservar</button>{% else %}<a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Inicia sesión</a>{% endif %}</div>
+          <div class="card-bottom"><span>Desde <strong>{{ service.price }}</strong></span>{% if service.id %}{% if user.is_authenticated %}<button class="booking-trigger" type="button" data-service-id="{{ service.id }}" data-service-name="{{ service.name }}" data-service-provider="{{ service.provider }}" data-service-price="{{ service.price }}" data-service-image="{{ service.image }}">Reservar</button>{% else %}<a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Inicia sesión</a>{% endif %}{% else %}<span class="service-unavailable">Próximamente</span>{% endif %}</div>
         </div>
       </article>
     {% endfor %}
@@ -260,6 +260,6 @@
 
 <section class="provider-cta">
   <div class="provider-photo"></div>
-  <div><span class="eyebrow light">Para profesionales</span><h2>Haz crecer tu negocio con<br>Beauty Go.</h2><p>Conecta tus servicios con nuevos clientes y gestiona tus reservas desde una plataforma pensada para profesionales de la belleza.</p><a class="cta-button" href="{% url 'solicitud_prestador' %}">Quiero ofrecer mis servicios</a></div>
+  <div><span class="eyebrow light">Para profesionales</span><h2>Haz crecer tu negocio con<br>Beauty Go.</h2><p>Conecta tus servicios con nuevos clientes y gestiona tus reservas desde una plataforma pensada para profesionales de la belleza.</p>{% if user.is_authenticated and user.perfil_prestador %}<a class="cta-button" href="{% url 'vista_prestador' %}">Ir a mi panel</a>{% else %}<a class="cta-button" href="{% url 'solicitud_prestador' %}">Quiero ofrecer mis servicios</a>{% endif %}</div>
 </section>
 {% endblock %}

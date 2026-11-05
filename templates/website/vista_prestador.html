@@ -1,0 +1,198 @@
+{% extends 'website/base.html' %}
+{% block title %}Portal de prestadores · Beauty Go{% endblock %}
+{% block page_shell_class %}admin-shell provider-shell{% endblock %}
+{% block content %}
+<main class="provider-dashboard">
+  {% if prestador.estado_aprobacion %}
+    <section class="provider-status-banner approved">
+      <div>
+        <span class="provider-eyebrow">Estado de la postulación</span>
+        <h1>Tu perfil fue aprobado</h1>
+        <p>Ya puedes publicar tus servicios para que los clientes los encuentren y reserven.</p>
+      </div>
+      <a href="{% url 'home' %}#services">Ver catálogo</a>
+    </section>
+  {% elif prestador.estado_aprobacion is None %}
+    <section class="provider-status-banner pending">
+      <div>
+        <span class="provider-eyebrow">Estado de la postulación</span>
+        <h1>Tu perfil está en revisión</h1>
+        <p>Te avisaremos cuando el equipo revise tu solicitud. Mientras tanto, puedes conocer el portal.</p>
+      </div>
+      <span class="provider-status-pill">Pendiente</span>
+    </section>
+  {% else %}
+    <section class="provider-status-banner rejected">
+      <div>
+        <span class="provider-eyebrow">Estado de la postulación</span>
+        <h1>Tu solicitud no fue aprobada</h1>
+        <p>Contacta al equipo de Beauty Go si necesitas más información sobre la decisión.</p>
+      </div>
+      <span class="provider-status-pill">Rechazada</span>
+    </section>
+  {% endif %}
+
+  <section class="provider-panel-card">
+    <div class="provider-panel-heading">
+      <div><span class="provider-eyebrow">Secciones del panel</span><p>Administra tus servicios, reservas y suscripción desde aquí.</p></div>
+    </div>
+    <nav class="provider-section-nav" aria-label="Secciones del panel de prestador">
+      <a href="{% url 'vista_prestador' %}?section=servicios" class="{% if section == 'servicios' %}active{% endif %}" {% if section == 'servicios' %}aria-current="page"{% endif %}>
+        <span class="provider-section-icon">✧</span><span><strong>Servicios</strong><small>Publicar y administrar</small></span><b>{{ service_count }}</b>
+      </a>
+      <a href="{% url 'vista_prestador' %}?section=reservas" class="{% if section == 'reservas' %}active{% endif %}" {% if section == 'reservas' %}aria-current="page"{% endif %}>
+        <span class="provider-section-icon">▣</span><span><strong>Reservas</strong><small>Agenda e historial</small></span><b>{{ reservation_count }}</b>
+      </a>
+      <a href="{% url 'vista_prestador' %}?section=suscripcion" class="{% if section == 'suscripcion' %}active{% endif %}" {% if section == 'suscripcion' %}aria-current="page"{% endif %}>
+        <span class="provider-section-icon">✓</span><span><strong>Suscripción</strong><small>Pagos y mensualidades</small></span><b>{{ monthly_subscription_price }}</b>
+      </a>
+    </nav>
+  </section>
+
+  {% if section == 'servicios' %}
+    <div class="provider-services-layout">
+      <section class="provider-publish-card">
+        <span class="provider-eyebrow">{% if editing_service %}Editar servicio{% else %}Nuevo servicio{% endif %}</span>
+        <h2>{% if editing_service %}Actualiza tu servicio{% else %}Publicar en RG Beauty{% endif %}</h2>
+        {% if prestador.estado_aprobacion %}
+          <form method="post" class="provider-service-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="guardar_servicio">
+            {% if editing_service %}<input type="hidden" name="service_id" value="{{ editing_service.pk }}">{% endif %}
+            {% for error in service_form.non_field_errors %}<small class="provider-field-error">{{ error }}</small>{% endfor %}
+            <div class="provider-form-field">
+              <label for="{{ service_form.categoria.id_for_label }}">Categoría</label>
+              {{ service_form.categoria }}
+              {% for error in service_form.categoria.errors %}<small class="provider-field-error">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="provider-form-field">
+              <label for="{{ service_form.nombre.id_for_label }}">Nombre del servicio</label>
+              {{ service_form.nombre }}
+              {% for error in service_form.nombre.errors %}<small class="provider-field-error">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="provider-form-field">
+              <label for="{{ service_form.descripcion.id_for_label }}">Descripción del servicio</label>
+              {{ service_form.descripcion }}
+              {% for error in service_form.descripcion.errors %}<small class="provider-field-error">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="provider-form-row">
+              <div class="provider-form-field">
+                <label for="{{ service_form.duracion.id_for_label }}">Duración</label>
+                {{ service_form.duracion }}
+                {% for error in service_form.duracion.errors %}<small class="provider-field-error">{{ error }}</small>{% endfor %}
+              </div>
+              <div class="provider-form-field">
+                <label for="{{ service_form.precio_base.id_for_label }}">Precio</label>
+                <div class="provider-price-input"><span>$</span>{{ service_form.precio_base }}<small>CLP</small></div>
+                {% for error in service_form.precio_base.errors %}<small class="provider-field-error">{{ error }}</small>{% endfor %}
+              </div>
+            </div>
+            <button class="provider-publish-button" type="submit">{% if editing_service %}Guardar cambios{% else %}Publicar servicio{% endif %}</button>
+            {% if editing_service %}<a class="provider-cancel-edit" href="{% url 'vista_prestador' %}">Cancelar edición</a>{% endif %}
+          </form>
+        {% else %}
+          <p class="provider-disabled-note">Podrás publicar servicios cuando tu perfil sea aprobado.</p>
+        {% endif %}
+      </section>
+
+      <section class="provider-service-list">
+        <header><div><span class="provider-eyebrow">Tu catálogo</span><h2>Servicios publicados</h2></div><b>{{ service_count }}</b></header>
+        {% for item in services %}
+          <article class="provider-service-card">
+            <img class="provider-service-image" src="{{ item.image }}" alt="">
+            <div class="provider-service-copy"><span>{{ item.service.categoria|default:prestador.especialidad }}</span><h3>{{ item.service.nombre }}</h3><p>{{ item.service.duracion }} min</p></div>
+            <strong class="provider-service-price">{{ item.price_display }}</strong>
+            <a href="{% url 'vista_prestador' %}?section=servicios&editar={{ item.service.pk }}">Editar</a>
+          </article>
+        {% empty %}
+          <div class="provider-empty-card"><h3>Aún no publicas servicios</h3><p>Completa el formulario para que tus servicios aparezcan en el catálogo.</p></div>
+        {% endfor %}
+      </section>
+    </div>
+  {% elif section == 'reservas' %}
+    <section class="provider-content-section">
+      <header class="provider-content-heading"><div><span class="provider-eyebrow">Tu agenda</span><h2>Reservas recibidas</h2><p>Revisa las próximas atenciones y actualiza su estado.</p></div><b>{{ reservation_count }}</b></header>
+      <div class="provider-reservation-list">
+        {% for reservation in reservations %}
+          <article class="provider-reservation-card">
+            <div class="provider-reservation-date"><strong>{{ reservation.fecha|date:"j" }}</strong><span>{{ reservation.fecha|date:"M Y" }}</span><b>{{ reservation.hora_bloque|time:"H:i" }}</b></div>
+            <div class="provider-reservation-details">
+              <span class="provider-eyebrow">Cliente · {{ reservation.cliente_idcliente.nombre|default:reservation.cliente_idcliente.usuario.username }}</span>
+              <h3>{% for service in reservation.provider_services %}{{ service.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}</h3>
+              <p>{{ reservation.direccion_visita }}</p>
+              <span class="status-pill {% if reservation.estado == 'Confirmada' or reservation.estado == 'Completada' %}approved{% elif reservation.estado == 'Rechazada' %}rejected{% else %}pending{% endif %}">{{ reservation.estado }}</span>
+            </div>
+            {% if prestador.estado_aprobacion and reservation.estado != 'Rechazada' and reservation.estado != 'Completada' %}
+              <form method="post" class="provider-reservation-actions">
+                {% csrf_token %}<input type="hidden" name="action" value="actualizar_reserva"><input type="hidden" name="reserva_id" value="{{ reservation.pk }}">
+                {% if reservation.estado == 'Pendiente' %}<button type="submit" name="estado" value="Confirmada">Confirmar</button>{% endif %}
+                <button class="provider-reject-button" type="submit" name="estado" value="Rechazada">Rechazar</button>
+                {% if reservation.estado == 'Confirmada' %}<button type="submit" name="estado" value="Completada">Marcar completada</button>{% endif %}
+              </form>
+            {% endif %}
+          </article>
+        {% empty %}
+          <div class="provider-empty-card"><h3>Tu agenda está despejada</h3><p>Cuando un cliente reserve uno de tus servicios, lo verás aquí.</p></div>
+        {% endfor %}
+      </div>
+    </section>
+  {% else %}
+    <section class="provider-subscription-section">
+      <div class="provider-subscription-banner">
+        <div class="provider-subscription-current">
+          <span class="provider-eyebrow">Suscripción profesional</span>
+          <div class="provider-subscription-price"><strong>{{ monthly_subscription_price }}</strong><span>por mes</span></div>
+          <p>Mantiene activo tu perfil, la publicación de servicios y la recepción de nuevas reservas.</p>
+        </div>
+        <div class="provider-subscription-action">
+          {% if subscription and subscription.estado == 'pagada' %}
+            <span class="provider-subscription-status paid">Pago registrado</span>
+            <p>Este mes ya tienes tu suscripción al día.</p>
+          {% else %}
+            <span class="provider-subscription-status pending">Pago pendiente</span>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="pagar_suscripcion">
+              <button class="provider-subscription-pay" type="submit">Pagar suscripción · {{ monthly_subscription_price }}</button>
+            </form>
+            <small>Pago simulado; no se realizará ningún cobro real.</small>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="provider-subscription-history">
+        <span class="provider-eyebrow">Historial de mensualidades</span>
+        <h2>Pagos anteriores</h2>
+        <div class="provider-subscription-list">
+          {% for item in subscription_history %}
+            <article class="provider-subscription-row">
+              <div class="provider-subscription-period">
+                <strong>{{ item.subscription.periodo|date:"F Y" }}</strong>
+                <small>
+                  {% if item.subscription.fecha_pago %}
+                    Fecha de pago: {{ item.subscription.fecha_pago|date:"d \\d\\e F \\d\\e Y" }}
+                  {% elif item.is_overdue %}
+                    Este periodo está pendiente de pago.
+                  {% else %}
+                    Pago pendiente.
+                  {% endif %}
+                </small>
+              </div>
+              <strong class="provider-subscription-row-amount">{{ item.amount_display }}</strong>
+              {% if item.subscription.estado == 'pagada' %}
+                <span class="provider-subscription-badge paid">Pagada</span>
+              {% elif item.is_overdue %}
+                <span class="provider-subscription-badge overdue">Pago atrasado</span>
+              {% else %}
+                <span class="provider-subscription-badge pending">Pendiente</span>
+              {% endif %}
+            </article>
+          {% empty %}
+            <div class="provider-subscription-empty">Aún no tienes pagos anteriores registrados.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+</main>
+{% endblock %}
