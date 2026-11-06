@@ -8,7 +8,9 @@
     <p>Busca, compara y reserva a los mejores profesionales de Copiapó en minutos.</p>
     <form class="search" method="get" action="{% url 'home' %}">
       <span>⌕</span>
-      <input name="q" placeholder="Busca un servicio, categoría o profesional" aria-label="Buscar servicios">
+      <input name="q" value="{{ service_query }}" placeholder="Busca un servicio, categoría o profesional" aria-label="Buscar servicios">
+      <input type="hidden" name="categoria" value="{{ service_category }}">
+      <input type="hidden" name="orden" value="{{ service_order }}">
       <button aria-label="Buscar" type="submit">›</button>
     </form>
   </div>
@@ -22,12 +24,25 @@
 </section>
 <nav class="categories" aria-label="Categorías" id="service-categories">
   {% for category in categories %}
-    <button class="{% if forloop.first %}active{% endif %}" type="button" data-category="{{ category.0 }}">{{ category.1 }}</button>
+    <a class="{% if service_category == category.0 or not service_category and forloop.first %}active{% endif %}" href="?{% if service_query %}q={{ service_query|urlencode }}&amp;{% endif %}categoria={{ category.0 }}&amp;orden={{ service_order }}#services">{{ category.1 }}</a>
   {% endfor %}
 </nav>
 
 <section id="services">
-  <div class="section-head compact"><div><span class="eyebrow green">Disponibles ahora</span><h2>Cerca de ti</h2></div></div>
+  <div class="section-head compact">
+    <div><span class="eyebrow green">Disponibles ahora</span><h2>Cerca de ti</h2></div>
+    <form method="get" action="{% url 'home' %}">
+      <input type="hidden" name="q" value="{{ service_query }}">
+      <input type="hidden" name="categoria" value="{{ service_category }}">
+      <label>Ordenar
+        <select name="orden" onchange="this.form.submit()">
+          <option value="nombre" {% if service_order == 'nombre' %}selected{% endif %}>Nombre</option>
+          <option value="precio" {% if service_order == 'precio' %}selected{% endif %}>Precio</option>
+          <option value="duracion" {% if service_order == 'duracion' %}selected{% endif %}>Duración</option>
+        </select>
+      </label>
+    </form>
+  </div>
   <div class="service-grid">
     {% for service in services %}
       <article class="card" data-service-categories="{{ service.category_keys|join:',' }}">
@@ -36,11 +51,22 @@
           <div class="card-meta"><span>{{ service.category }}</span><span>★ {{ service.rating }}</span></div>
           <h3>{{ service.name }}</h3><p>{{ service.provider }} · {{ service.duration }}</p>{% if service.description %}<p class="service-description">{{ service.description }}</p>{% endif %}
           <div class="card-info"><span>◷ {{ service.time }}</span><span>{{ service.distance }}</span></div>
-          <div class="card-bottom"><span>Desde <strong>{{ service.price }}</strong></span>{% if service.id %}{% if user.is_authenticated %}<button class="booking-trigger" type="button" data-service-id="{{ service.id }}" data-service-name="{{ service.name }}" data-service-provider="{{ service.provider }}" data-service-price="{{ service.price }}" data-service-image="{{ service.image }}">Reservar</button>{% else %}<a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Inicia sesión</a>{% endif %}{% else %}<span class="service-unavailable">Próximamente</span>{% endif %}</div>
+          <div class="card-bottom"><span>Desde <strong>{{ service.price }}</strong></span>{% if service.id %}<a href="{% url 'detalle_servicio' service.id %}">Ver detalles</a>{% if user.is_authenticated %}<button class="booking-trigger" type="button" data-service-id="{{ service.id }}" data-service-name="{{ service.name }}" data-service-provider="{{ service.provider }}" data-service-price="{{ service.price }}" data-service-image="{{ service.image }}">Reservar</button>{% else %}<a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Inicia sesión</a>{% endif %}{% else %}<span class="service-unavailable">Próximamente</span>{% endif %}</div>
         </div>
       </article>
     {% endfor %}
   </div>
+  {% if services_page.paginator.num_pages > 1 %}
+    <nav class="service-pagination" aria-label="Paginación de servicios">
+      {% if services_page.has_previous %}
+        <a href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ services_page.previous_page_number }}#services">Anterior</a>
+      {% endif %}
+      <span>Página {{ services_page.number }} de {{ services_page.paginator.num_pages }}</span>
+      {% if services_page.has_next %}
+        <a href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ services_page.next_page_number }}#services">Siguiente</a>
+      {% endif %}
+    </nav>
+  {% endif %}
 </section>
 
 {% if user.is_authenticated %}
@@ -105,42 +131,9 @@
 {% endif %}
 
 <script>
-  (() => {
-    const categoryButtons = document.querySelectorAll('#service-categories button');
-    const serviceCards = document.querySelectorAll('#services .card');
-    const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-    const filterServices = (button) => {
-      const selectedCategory = button.dataset.category;
-      categoryButtons.forEach((item) => {
-        item.classList.toggle('active', item === button);
-      });
-      serviceCards.forEach((card) => {
-        const cardCategories = (card.dataset.serviceCategories || card.dataset.serviceCategory || '').split(',');
-        const matches = selectedCategory === 'todo'
-          || cardCategories.includes(normalize(selectedCategory));
-        card.hidden = !matches;
-      });
-    };
-
-    categoryButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        filterServices(button);
-      });
-    });
-
-    const initialCategory = new URLSearchParams(window.location.search).get('categoria');
-    const initialButton = [...categoryButtons].find(
-      (button) => button.dataset.category === initialCategory,
-    );
-    if (initialButton) {
-      filterServices(initialButton);
-    } else {
-      serviceCards.forEach((card) => {
-        card.hidden = false;
-      });
-    }
-  })();
+  document.querySelectorAll('#services .card').forEach((card) => {
+    card.hidden = false;
+  });
 </script>
 {% if user.is_authenticated %}
 <script>

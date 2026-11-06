@@ -217,6 +217,83 @@ class ProviderDashboardTests(TestCase):
         self.assertContains(response, 'Agregar dirección de atención')
         self.assertEqual(response.content.count(b'class="provider-role-link"'), 1)
 
+    def test_provider_services_are_searchable_and_paginated(self):
+        for service_id in range(6, 14):
+            Servicio.objects.create(
+                idservicio=service_id,
+                nombre=f'Servicio {service_id}',
+                descripcion='Servicio para paginación',
+                duracion=60,
+                precio_base=10000 + service_id,
+                prestador_idprestador=self.provider,
+            )
+
+        response = self.client.get(
+            reverse('vista_prestador'),
+            {'q': 'paginación', 'orden': 'precio'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Página 1 de 2')
+        self.assertContains(response, 'q=paginaci%C3%B3n')
+        self.assertContains(response, 'orden=precio')
+
+        response = self.client.get(
+            reverse('vista_prestador'),
+            {'q': 'Corte', 'categoria': 'peluqueria'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Corte y brushing')
+        self.assertNotContains(response, 'Servicio 6')
+
+    def test_any_visitor_can_view_details_of_an_approved_service(self):
+        self.client.logout()
+
+        response = self.client.get(
+            reverse('detalle_servicio', args=[self.service.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Corte y brushing')
+        self.assertContains(response, 'Peluquería')
+        self.assertContains(response, 'Constanza Ramirez')
+        self.assertContains(response, '90 minutos')
+
+    def test_home_catalog_is_searchable_and_paginated(self):
+        self.client.logout()
+        for service_id in range(6, 13):
+            Servicio.objects.create(
+                idservicio=service_id,
+                nombre=f'Catálogo {service_id}',
+                descripcion='Servicio facial disponible',
+                categoria='Faciales',
+                duracion=45,
+                precio_base=12000,
+                prestador_idprestador=self.provider,
+            )
+
+        response = self.client.get(
+            reverse('home'),
+            {'q': 'facial', 'categoria': 'faciales', 'orden': 'precio'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Página 1 de 2')
+        self.assertContains(response, 'q=facial')
+        self.assertContains(response, 'categoria=faciales')
+        self.assertContains(response, 'orden=precio')
+
+    def test_unapproved_service_is_not_visible_in_service_details(self):
+        self.provider.estado_aprobacion = None
+        self.provider.save(update_fields=['estado_aprobacion'])
+
+        response = self.client.get(
+            reverse('detalle_servicio', args=[self.service.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
     def test_provider_can_publish_and_edit_only_their_own_services(self):
         response = self.client.post(reverse('vista_prestador'), {
             'action': 'guardar_servicio',
@@ -247,6 +324,51 @@ class ProviderDashboardTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.service.refresh_from_db()
         self.assertEqual(self.service.nombre, 'Corte actualizado')
+
+    def test_provider_can_confirm_and_delete_their_own_service(self):
+        response = self.client.get(
+            reverse('vista_prestador') + f'?section=servicios&eliminar={self.service.pk}'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '¿Eliminar «Corte y brushing»?')
+        self.assertContains(response, 'name="action" value="eliminar_servicio"')
+
+        response = self.client.post(reverse('vista_prestador'), {
+            'action': 'eliminar_servicio',
+            'service_id': str(self.service.pk),
+        })
+
+        self.assertRedirects(response, reverse('vista_prestador'))
+        self.assertFalse(Servicio.objects.filter(pk=self.service.pk).exists())
+
+    def test_provider_cannot_delete_another_providers_service(self):
+        other_user = User.objects.create_user(
+            username='other-provider',
+            password='secure-test-password',
+        )
+        other_provider = Prestador.objects.create(
+            especialidad='Uñas',
+            numCertificacion_sanitaria='CERT-789',
+            radio_cobertura='Copiapó',
+            estado_aprobacion=True,
+            usuario=other_user,
+        )
+        other_service = Servicio.objects.create(
+            idservicio=8,
+            nombre='Servicio ajeno',
+            duracion=60,
+            precio_base=15000,
+            prestador_idprestador=other_provider,
+        )
+
+        response = self.client.post(reverse('vista_prestador'), {
+            'action': 'eliminar_servicio',
+            'service_id': str(other_service.pk),
+        })
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Servicio.objects.filter(pk=other_service.pk).exists())
 
     def test_service_fields_are_validated_before_publishing(self):
         response = self.client.post(reverse('vista_prestador'), {

@@ -1,0 +1,58 @@
+{% extends 'website/base.html' %}
+{% block title %}{{ service.nombre }} · Beauty Go{% endblock %}
+{% block content %}
+<main class="service-detail-page">
+  <a class="provider-cancel-edit" href="{% url 'home' %}#services">← Volver al catálogo</a>
+  <article class="service-detail-card">
+    <img class="service-detail-image" src="{{ service_image }}" alt="Imagen de {{ service.nombre }}">
+    <div class="service-detail-content">
+      <span class="eyebrow green">{{ service.categoria|default:provider.especialidad }}</span>
+      <h1>{{ service.nombre }}</h1>
+      <p class="service-detail-description">{{ service.descripcion|default:"Servicio de belleza a domicilio." }}</p>
+
+      <dl class="service-detail-facts">
+        <div><dt>Duración</dt><dd>{{ service.duracion }} minutos</dd></div>
+        <div><dt>Precio base</dt><dd>${{ service.precio_base }}</dd></div>
+        <div><dt>Cobertura</dt><dd>{{ provider.radio_cobertura }}</dd></div>
+      </dl>
+
+      <section class="service-detail-provider">
+        <span class="eyebrow">Profesional</span>
+        <h2>{{ provider.usuario.get_full_name|default:provider.usuario.username }}</h2>
+        <p>{{ provider.especialidad }} · Prestador aprobado</p>
+      </section>
+
+      <div class="service-detail-actions">
+        <a class="cta-button" href="{% url 'home' %}#services">Volver a reservar</a>
+        {% if user.is_authenticated and user.perfil_prestador == provider %}
+          <a class="provider-cancel-edit" href="{% url 'vista_prestador' %}?section=servicios&editar={{ service.pk }}">Editar servicio</a>
+        {% endif %}
+      </div>
+    </div>
+  </article>
+</main>
+<style>
+  .service-detail-page { max-width: 980px; margin: 30px auto 60px; }
+  .service-detail-card { display: grid; grid-template-columns: minmax(280px, .9fr) 1.1fr; overflow: hidden; margin-top: 18px; border-radius: 26px; background: #f8f5f1; box-shadow: 0 24px 60px rgba(56,35,47,.16); }
+  .service-detail-image { width: 100%; height: 100%; min-height: 430px; object-fit: cover; }
+  .service-detail-content { padding: 46px; }
+  .service-detail-content h1 { margin: 10px 0 15px; color: #38232f; font: 500 42px/1.1 "Playfair Display", serif; }
+  .service-detail-description { color: #75676e; line-height: 1.7; }
+  .service-detail-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 30px 0; }
+  .service-detail-facts div { padding: 14px; border-radius: 13px; background: #fff; }
+  .service-detail-facts dt { color: #a28f96; font-size: 10px; text-transform: uppercase; }
+  .service-detail-facts dd { margin: 6px 0 0; color: #38232f; font-weight: 700; }
+  .service-detail-provider { padding: 20px; border-radius: 15px; background: #a5dea8; color: #38232f; }
+  .service-detail-provider h2 { margin: 7px 0 4px; font: 500 24px "Playfair Display", serif; }
+  .service-detail-provider p { margin: 0; }
+  .service-detail-actions { display: flex; align-items: center; gap: 18px; margin-top: 28px; }
+  @media (max-width: 700px) {
+    .service-detail-page { margin: 20px 12px 40px; }
+    .service-detail-card { grid-template-columns: 1fr; }
+    .service-detail-image { min-height: 260px; max-height: 320px; }
+    .service-detail-content { padding: 28px 22px; }
+    .service-detail-content h1 { font-size: 34px; }
+    .service-detail-facts { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}

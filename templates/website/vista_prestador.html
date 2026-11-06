@@ -96,17 +96,62 @@
       </section>
 
       <section class="provider-service-list">
-        <header><div><span class="provider-eyebrow">Tu catálogo</span><h2>Servicios publicados</h2></div><b>{{ service_count }}</b></header>
+        <header>
+          <div><span class="provider-eyebrow">Tu catálogo</span><h2>Servicios publicados</h2></div>
+          <b>{{ service_count }}</b>
+        </header>
+        <form method="get" class="provider-service-filters">
+          <input type="hidden" name="section" value="servicios">
+          <input name="q" value="{{ service_query }}" placeholder="Buscar servicios" aria-label="Buscar servicios">
+          <select name="categoria" aria-label="Filtrar por categoría">
+            <option value="todo" {% if service_category == 'todo' %}selected{% endif %}>Todas las categorías</option>
+            {% for category in categories %}
+              {% if category.0 != 'todo' %}<option value="{{ category.0 }}" {% if service_category == category.0 %}selected{% endif %}>{{ category.1 }}</option>{% endif %}
+            {% endfor %}
+          </select>
+          <select name="orden" aria-label="Ordenar servicios">
+            <option value="nombre" {% if service_order == 'nombre' %}selected{% endif %}>Ordenar por nombre</option>
+            <option value="precio" {% if service_order == 'precio' %}selected{% endif %}>Ordenar por precio</option>
+            <option value="duracion" {% if service_order == 'duracion' %}selected{% endif %}>Ordenar por duración</option>
+          </select>
+          <button type="submit">Aplicar</button>
+        </form>
+        {% if deleting_service %}
+          <div class="provider-delete-confirmation" role="alert">
+            <h3>¿Eliminar «{{ deleting_service.nombre }}»?</h3>
+            <p>Esta acción no se puede deshacer.</p>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="eliminar_servicio">
+              <input type="hidden" name="service_id" value="{{ deleting_service.pk }}">
+              <button class="provider-reject-button" type="submit">Sí, eliminar servicio</button>
+              <a class="provider-cancel-edit" href="{% url 'vista_prestador' %}">Cancelar</a>
+            </form>
+          </div>
+        {% endif %}
         {% for item in services %}
           <article class="provider-service-card">
             <img class="provider-service-image" src="{{ item.image }}" alt="">
             <div class="provider-service-copy"><span>{{ item.service.categoria|default:prestador.especialidad }}</span><h3>{{ item.service.nombre }}</h3><p>{{ item.service.duracion }} min</p></div>
             <strong class="provider-service-price">{{ item.price_display }}</strong>
+            <a href="{% url 'detalle_servicio' item.service.pk %}">Ver detalle</a>
             <a href="{% url 'vista_prestador' %}?section=servicios&editar={{ item.service.pk }}">Editar</a>
+            <a href="{% url 'vista_prestador' %}?section=servicios&eliminar={{ item.service.pk }}">Eliminar</a>
           </article>
         {% empty %}
           <div class="provider-empty-card"><h3>Aún no publicas servicios</h3><p>Completa el formulario para que tus servicios aparezcan en el catálogo.</p></div>
         {% endfor %}
+        {% if service_page.paginator.num_pages > 1 %}
+          <nav class="service-pagination" aria-label="Paginación de servicios">
+            {% if service_page.has_previous %}
+              <a href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ service_page.previous_page_number }}">Anterior</a>
+            {% endif %}
+            <span>Página {{ service_page.number }} de {{ service_page.paginator.num_pages }}</span>
+            {% if service_page.has_next %}
+              <a href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ service_page.next_page_number }}">Siguiente</a>
+            {% endif %}
+          </nav>
+        {% endif %}
       </section>
     </div>
   {% elif section == 'reservas' %}

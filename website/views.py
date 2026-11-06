@@ -6,6 +6,7 @@ from django.http import Http404
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db import transaction
 from .forms import (
     EditarUsuarioForm,
@@ -110,12 +111,13 @@ def _service_image(category, index=0):
 def _filtered_services(request):
     query = request.GET.get('q', '').strip().lower()
     category = request.GET.get('categoria', '').strip().lower()
+    ordering = request.GET.get('orden', 'nombre').strip().lower()
     database_services = Servicio.objects.select_related(
         'prestador_idprestador__usuario'
     ).filter(
         prestador_idprestador__estado_aprobacion=True,
         prestador_idprestador__usuario__isnull=False,
-    ).order_by('idservicio')
+    )
     services = [
         {
             'id': service.idservicio,
@@ -152,9 +154,30 @@ def _filtered_services(request):
     if query:
         services = [
             item for item in services
-            if query in ' '.join((item['category'], item['name'], item['provider'])).lower()
+            if query in ' '.join((
+                item['category'],
+                item['name'],
+                item['description'],
+                item['provider'],
+            )).lower()
         ]
+    ordering_key = {
+        'precio': lambda item: int(
+            item['price'].replace('$', '').replace('.', '')
+        ),
+        'duracion': lambda item: int(item['duration'].split()[0]),
+        'nombre': lambda item: item['name'].lower(),
+    }.get(ordering, lambda item: item['name'].lower())
+    services.sort(key=ordering_key)
     return services
+
+
+def _paginated_services(services, request, per_page=6):
+    paginator = Paginator(services, per_page)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
+    return page_obj, query_params.urlencode()
 
 
 def _service_category_keys(service):
@@ -200,9 +223,18 @@ def home(request):
         Pago.objects.filter(reserva_idreserva=confirmed_booking).first()
         if confirmed_booking else None
     )
+    services_page, service_querystring = _paginated_services(
+        _filtered_services(request),
+        request,
+    )
     return render(request, 'website/home.html', {
-        'services': _filtered_services(request),
+        'services_page': services_page,
+        'services': services_page.object_list,
+        'service_querystring': service_querystring,
         'categories': CATEGORIES,
+        'service_query': request.GET.get('q', '').strip(),
+        'service_category': request.GET.get('categoria', 'todo').strip().lower(),
+        'service_order': request.GET.get('orden', 'nombre').strip().lower(),
         'booking_dates': [
             timezone.localdate() + timedelta(days=offset)
             for offset in range(1, 8)
@@ -210,6 +242,22 @@ def home(request):
         'booking_client': client_profile,
         'confirmed_booking': confirmed_booking,
         'confirmed_payment': confirmed_payment,
+    })
+
+
+def detalle_servicio(request, pk):
+    service = get_object_or_404(
+        Servicio.objects.select_related(
+            'prestador_idprestador__usuario',
+        ),
+        pk=pk,
+        prestador_idprestador__estado_aprobacion=True,
+    )
+    provider = service.prestador_idprestador
+    return render(request, 'website/detalle_servicio.html', {
+        'service': service,
+        'provider': provider,
+        'service_image': _service_image(service.categoria),
     })
 
 
@@ -465,7 +513,9 @@ def vista_prestador(request):
 
     service_form = ServicioForm()
     editing_service = None
+    deleting_service = None
     requested_service_id = request.GET.get('editar')
+    requested_delete_service_id = request.GET.get('eliminar')
     if requested_service_id and section == 'servicios':
         if not requested_service_id.isdigit():
             raise Http404
@@ -475,6 +525,15 @@ def vista_prestador(request):
             prestador_idprestador=prestador,
         )
         service_form = ServicioForm(instance=editing_service)
+
+    if requested_delete_service_id and section == 'servicios':
+        if not requested_delete_service_id.isdigit():
+            raise Http404
+        deleting_service = get_object_or_404(
+            Servicio,
+            pk=int(requested_delete_service_id),
+            prestador_idprestador=prestador,
+        )
 
     if request.method == 'POST':
         if prestador.estado_aprobacion is not True:
@@ -542,6 +601,19 @@ def vista_prestador(request):
                 messages.success(request, 'El servicio fue guardado correctamente.')
                 return redirect('vista_prestador')
             section = 'servicios'
+        elif action == 'eliminar_servicio':
+            service_id = request.POST.get('service_id', '')
+            if not service_id.isdigit():
+                messages.error(request, 'El servicio seleccionado no es válido.')
+                return redirect('vista_prestador')
+            service = get_object_or_404(
+                Servicio,
+                pk=int(service_id),
+                prestador_idprestador=prestador,
+            )
+            service.delete()
+            messages.success(request, 'El servicio fue eliminado correctamente.')
+            return redirect('vista_prestador')
         elif action == 'actualizar_reserva':
             status = request.POST.get('estado')
             reservation_id = request.POST.get('reserva_id', '')
@@ -568,13 +640,41 @@ def vista_prestador(request):
         Servicio.objects.filter(prestador_idprestador=prestador)
         .order_by('nombre')
     )
+    provider_query = request.GET.get('q', '').strip().lower()
+    provider_category = request.GET.get('categoria', '').strip().lower()
+    provider_order = request.GET.get('orden', 'nombre').strip().lower()
+    if provider_query:
+        provider_services = [
+            service for service in provider_services
+            if provider_query in ' '.join((
+                service.nombre,
+                service.descripcion,
+                service.categoria,
+                prestador.especialidad,
+            )).lower()
+        ]
+    if provider_category and provider_category != 'todo':
+        provider_services = [
+            service for service in provider_services
+            if provider_category in _service_category_keys(service)
+        ]
+    if provider_order == 'precio':
+        provider_services.sort(key=lambda service: service.precio_base)
+    elif provider_order == 'duracion':
+        provider_services.sort(key=lambda service: service.duracion)
+    else:
+        provider_services.sort(key=lambda service: service.nombre.lower())
+    provider_services_page, provider_querystring = _paginated_services(
+        provider_services,
+        request,
+    )
     services = [
         {
             'service': service,
             'image': _service_image(service.categoria, index),
             'price_display': _format_clp(service.precio_base),
         }
-        for index, service in enumerate(provider_services)
+        for index, service in enumerate(provider_services_page.object_list)
     ]
     reservation_list = list(
         Reserva.objects.filter(
@@ -610,8 +710,15 @@ def vista_prestador(request):
         'section': section,
         'service_form': service_form,
         'editing_service': editing_service,
+        'deleting_service': deleting_service,
         'services': services,
-        'service_count': len(services),
+        'service_page': provider_services_page,
+        'service_querystring': provider_querystring,
+        'service_query': request.GET.get('q', '').strip(),
+        'service_category': provider_category or 'todo',
+        'service_order': provider_order,
+        'categories': CATEGORIES,
+        'service_count': len(provider_services),
         'reservations': reservation_list,
         'reservation_count': len(reservation_list),
         'current_period': current_period,
