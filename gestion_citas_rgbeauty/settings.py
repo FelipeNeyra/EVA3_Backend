@@ -78,9 +78,9 @@ WSGI_APPLICATION = 'gestion_citas_rgbeauty.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'gestion_rgbeauty2',
+        'NAME': 'gestion_rgbeauty',
         'USER': 'root',
-        'PASSWORD': '1527921Root',
+        'PASSWORD': '123456',
         'HOST': 'localhost',
         'PORT': '3306',
     }

@@ -175,6 +175,57 @@ class AdminDashboardTests(TestCase):
         self.assertContains(response, '$28.000')
         self.assertContains(response, '$23.800')
 
+    def test_liquidations_can_be_filtered_by_provider_and_service(self):
+        self.client.force_login(self.admin_user)
+        other_user = User.objects.create_user(
+            username='other-professional',
+            first_name='Otra',
+            last_name='Profesional',
+        )
+        other_provider = Prestador.objects.create(
+            especialidad='Uñas',
+            numCertificacion_sanitaria='CERT-OTHER',
+            radio_cobertura='Copiapó',
+            estado_aprobacion=True,
+            usuario=other_user,
+        )
+        other_service = Servicio.objects.create(
+            idservicio=2,
+            nombre='Manicure permanente',
+            duracion=60,
+            precio_base=18000,
+            prestador_idprestador=other_provider,
+        )
+        other_liquidation = Liquidacion.objects.create(
+            idliquidacion=2,
+            monto_bruto_total=18000,
+            porcentaje_comision=15.0,
+            monto_comision_spa=2700,
+            monto_neto_prestador=15300,
+            administrador_idadministrador=self.administrator,
+        )
+        ServicioHasLiquidacion.objects.create(
+            servicio=other_service,
+            liquidacion=other_liquidation,
+        )
+
+        response = self.client.get(
+            reverse('vista_administrador'),
+            {
+                'section': 'liquidaciones',
+                'prestador': str(other_provider.pk),
+                'q': 'Manicure',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Manicure permanente')
+        self.assertNotContains(response, 'Corte y brushing')
+        self.assertEqual(
+            [row['liquidation'].pk for row in response.context['liquidation_rows']],
+            [other_liquidation.pk],
+        )
+
 
 class ProviderDashboardTests(TestCase):
     def setUp(self):
@@ -283,6 +334,65 @@ class ProviderDashboardTests(TestCase):
         self.assertContains(response, 'q=facial')
         self.assertContains(response, 'categoria=faciales')
         self.assertContains(response, 'orden=precio')
+
+    def test_home_catalog_can_be_filtered_by_provider(self):
+        other_user = User.objects.create_user(
+            username='other-catalog-provider',
+            first_name='Otra',
+            last_name='Profesional',
+        )
+        other_provider = Prestador.objects.create(
+            especialidad='Uñas',
+            numCertificacion_sanitaria='CERT-OTHER-CATALOG',
+            radio_cobertura='Copiapó',
+            estado_aprobacion=True,
+            usuario=other_user,
+        )
+        other_service = Servicio.objects.create(
+            idservicio=90,
+            nombre='Manicure de prueba',
+            duracion=60,
+            precio_base=18000,
+            prestador_idprestador=other_provider,
+        )
+
+        response = self.client.get(
+            reverse('home'),
+            {'prestador': str(other_provider.pk)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [service['id'] for service in response.context['services']],
+            [other_service.pk],
+        )
+
+    def test_home_catalog_price_and_rating_ranges_filter_services(self):
+        response = self.client.get(
+            reverse('home'),
+            {
+                'precio_min': '20000',
+                'precio_max': '30000',
+                'calificacion_min': '4.8',
+                'calificacion_max': '5',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [service['id'] for service in response.context['services']],
+            [self.service.pk],
+        )
+        self.assertEqual(response.context['service_price_min'], 20000)
+        self.assertEqual(response.context['service_rating_min'], 4.8)
+
+        response = self.client.get(
+            reverse('home'),
+            {'precio_min': '30000', 'precio_max': '100000'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context['services']), [])
 
     def test_unapproved_service_is_not_visible_in_service_details(self):
         self.provider.estado_aprobacion = None

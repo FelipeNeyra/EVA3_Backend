@@ -33,7 +33,7 @@
 <section class="reservations-page">
   <header class="reservations-header">
     <div><span class="eyebrow">Cuenta de {{ booking_client.nombre|default:user.get_full_name }}</span><h1>Mis reservas</h1></div>
-    <div class="reservations-header-actions"><form class="inline-form" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="booking-prev" type="submit">Cerrar sesión</button></form><a class="reservations-close" href="{% url 'home' %}" aria-label="Cerrar">×</a></div>
+    <div class="reservations-header-actions"><form class="inline-form" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="booking-prev" type="submit" data-confirm-title="¿Confirmas que deseas cerrar sesión?" data-confirm-message="Tendrás que volver a ingresar para acceder a tu cuenta." data-confirm-label="Sí, cerrar sesión">Cerrar sesión</button></form><a class="reservations-close" href="{% url 'home' %}" aria-label="Cerrar">×</a></div>
   </header>
   <div class="reservations-profile">
     <span class="reservations-profile-icon">♙</span>

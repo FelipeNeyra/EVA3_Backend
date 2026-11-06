@@ -124,7 +124,7 @@
               {% csrf_token %}
               <input type="hidden" name="action" value="eliminar_servicio">
               <input type="hidden" name="service_id" value="{{ deleting_service.pk }}">
-              <button class="provider-reject-button" type="submit">Sí, eliminar servicio</button>
+              <button class="provider-reject-button" type="submit" data-confirm-title="¿Confirmas que deseas eliminar este servicio?" data-confirm-message="Eliminarás «{{ deleting_service.nombre }}». Esta acción no se puede deshacer." data-confirm-label="Sí, eliminar servicio">Sí, eliminar servicio</button>
               <a class="provider-cancel-edit" href="{% url 'vista_prestador' %}">Cancelar</a>
             </form>
           </div>
@@ -143,13 +143,28 @@
         {% endfor %}
         {% if service_page.paginator.num_pages > 1 %}
           <nav class="service-pagination" aria-label="Paginación de servicios">
+            <span class="service-pagination-count">Mostrando <strong>{{ service_page.start_index }}–{{ service_page.end_index }}</strong> de {{ service_page.paginator.count }} servicios<span class="service-pagination-sr-only">. Página {{ service_page.number }} de {{ service_page.paginator.num_pages }}.</span></span>
+            <div class="service-pagination-controls">
             {% if service_page.has_previous %}
-              <a href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ service_page.previous_page_number }}">Anterior</a>
+              <a class="service-pagination-arrow" href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ service_page.previous_page_number }}" aria-label="Página anterior">‹</a>
+            {% else %}
+              <span class="service-pagination-arrow disabled" aria-hidden="true">‹</span>
             {% endif %}
-            <span>Página {{ service_page.number }} de {{ service_page.paginator.num_pages }}</span>
+            {% for page_number in provider_page_range %}
+              {% if page_number == service_page.paginator.ELLIPSIS %}
+                <span class="service-pagination-ellipsis" aria-hidden="true">…</span>
+              {% elif page_number == service_page.number %}
+                <span class="service-pagination-page current" aria-current="page">{{ page_number }}</span>
+              {% else %}
+                <a class="service-pagination-page" href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ page_number }}" aria-label="Ir a la página {{ page_number }}">{{ page_number }}</a>
+              {% endif %}
+            {% endfor %}
             {% if service_page.has_next %}
-              <a href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ service_page.next_page_number }}">Siguiente</a>
+              <a class="service-pagination-arrow" href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ service_page.next_page_number }}" aria-label="Página siguiente">›</a>
+            {% else %}
+              <span class="service-pagination-arrow disabled" aria-hidden="true">›</span>
             {% endif %}
+            </div>
           </nav>
         {% endif %}
       </section>
@@ -170,9 +185,9 @@
             {% if prestador.estado_aprobacion and reservation.estado != 'Rechazada' and reservation.estado != 'Completada' %}
               <form method="post" class="provider-reservation-actions">
                 {% csrf_token %}<input type="hidden" name="action" value="actualizar_reserva"><input type="hidden" name="reserva_id" value="{{ reservation.pk }}">
-                {% if reservation.estado == 'Pendiente' %}<button type="submit" name="estado" value="Confirmada">Confirmar</button>{% endif %}
-                <button class="provider-reject-button" type="submit" name="estado" value="Rechazada">Rechazar</button>
-                {% if reservation.estado == 'Confirmada' %}<button type="submit" name="estado" value="Completada">Marcar completada</button>{% endif %}
+                {% if reservation.estado == 'Pendiente' %}<button type="submit" name="estado" value="Confirmada" data-confirm-title="¿Confirmas que deseas aceptar esta reserva?" data-confirm-message="La solicitud del cliente {{ reservation.cliente_idcliente.nombre|default:reservation.cliente_idcliente.usuario.username }} quedará confirmada." data-confirm-label="Sí, aceptar reserva">Confirmar</button>{% endif %}
+                <button class="provider-reject-button" type="submit" name="estado" value="Rechazada" data-confirm-title="¿Confirmas que deseas rechazar esta reserva?" data-confirm-message="La solicitud del cliente {{ reservation.cliente_idcliente.nombre|default:reservation.cliente_idcliente.usuario.username }} quedará rechazada." data-confirm-label="Sí, rechazar reserva">Rechazar</button>
+                {% if reservation.estado == 'Confirmada' %}<button type="submit" name="estado" value="Completada" data-confirm-title="¿Confirmas que deseas marcar la reserva como completada?" data-confirm-message="Esta actualización cambiará el estado de la atención en tu agenda." data-confirm-label="Sí, completar reserva">Marcar completada</button>{% endif %}
               </form>
             {% endif %}
           </article>
@@ -198,7 +213,7 @@
             <form method="post">
               {% csrf_token %}
               <input type="hidden" name="action" value="pagar_suscripcion">
-              <button class="provider-subscription-pay" type="submit">Pagar suscripción · {{ monthly_subscription_price }}</button>
+              <button class="provider-subscription-pay" type="submit" data-confirm-title="¿Confirmas que deseas pagar la suscripción?" data-confirm-message="Se registrará el pago simulado de {{ monthly_subscription_price }} para el periodo actual. No se realizará ningún cobro real." data-confirm-label="Sí, pagar suscripción">Pagar suscripción · {{ monthly_subscription_price }}</button>
             </form>
             <small>Pago simulado; no se realizará ningún cobro real.</small>
           {% endif %}

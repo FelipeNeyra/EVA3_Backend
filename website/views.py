@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from functools import wraps
+from math import isfinite
 
 from django.shortcuts import redirect, render, get_object_or_404
 from django.http import Http404
@@ -8,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Q
 from .forms import (
     EditarUsuarioForm,
     RegistroForm,
@@ -112,12 +114,25 @@ def _filtered_services(request):
     query = request.GET.get('q', '').strip().lower()
     category = request.GET.get('categoria', '').strip().lower()
     ordering = request.GET.get('orden', 'nombre').strip().lower()
+    provider_id = request.GET.get('prestador', '').strip()
+    price_min = _query_range_value(request.GET.get('precio_min'), 10000, 10000, 100000)
+    price_max = _query_range_value(request.GET.get('precio_max'), 100000, 10000, 100000)
+    rating_min = _query_range_value(request.GET.get('calificacion_min'), 1, 1, 5)
+    rating_max = _query_range_value(request.GET.get('calificacion_max'), 5, 1, 5)
+    if price_min > price_max:
+        price_min, price_max = price_max, price_min
+    if rating_min > rating_max:
+        rating_min, rating_max = rating_max, rating_min
     database_services = Servicio.objects.select_related(
         'prestador_idprestador__usuario'
     ).filter(
         prestador_idprestador__estado_aprobacion=True,
         prestador_idprestador__usuario__isnull=False,
     )
+    if provider_id.isdigit():
+        database_services = database_services.filter(
+            prestador_idprestador_id=int(provider_id),
+        )
     services = [
         {
             'id': service.idservicio,
@@ -129,9 +144,11 @@ def _filtered_services(request):
             or service.prestador_idprestador.usuario.username,
             'duration': f'{service.duracion} min',
             'price': f'${service.precio_base:,.0f}'.replace(',', '.'),
+            'price_value': service.precio_base,
             'time': 'Disponible hoy',
             'distance': service.prestador_idprestador.radio_cobertura,
             'rating': '5.0',
+            'rating_value': 5.0,
             'badge': 'Disponible ahora',
             'image': _service_image(
                 service.categoria or service.prestador_idprestador.especialidad,
@@ -140,12 +157,14 @@ def _filtered_services(request):
         }
         for index, service in enumerate(database_services)
     ]
-    if not services:
+    if not services and not provider_id:
         services = [
             {
                 **item,
                 'id': None,
                 'category_keys': _catalog_category_keys(item['category']),
+                'price_value': int(item['price'].replace('$', '').replace('.', '')),
+                'rating_value': float(item['rating'].split()[0]),
             }
             for item in SERVICE_CATALOG
         ]
@@ -161,6 +180,11 @@ def _filtered_services(request):
                 item['provider'],
             )).lower()
         ]
+    services = [
+        item for item in services
+        if price_min <= item['price_value'] <= price_max
+        and rating_min <= item['rating_value'] <= rating_max
+    ]
     ordering_key = {
         'precio': lambda item: int(
             item['price'].replace('$', '').replace('.', '')
@@ -170,6 +194,18 @@ def _filtered_services(request):
     }.get(ordering, lambda item: item['name'].lower())
     services.sort(key=ordering_key)
     return services
+
+
+def _query_range_value(value, default, minimum, maximum):
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    if not isfinite(parsed):
+        return default
+    if parsed.is_integer():
+        parsed = int(parsed)
+    return max(minimum, min(parsed, maximum))
 
 
 def _paginated_services(services, request, per_page=6):
@@ -227,14 +263,45 @@ def home(request):
         _filtered_services(request),
         request,
     )
+    service_price_min = _query_range_value(
+        request.GET.get('precio_min'), 10000, 10000, 100000,
+    )
+    service_price_max = _query_range_value(
+        request.GET.get('precio_max'), 100000, 10000, 100000,
+    )
+    service_rating_min = _query_range_value(
+        request.GET.get('calificacion_min'), 1, 1, 5,
+    )
+    service_rating_max = _query_range_value(
+        request.GET.get('calificacion_max'), 5, 1, 5,
+    )
+    if service_price_min > service_price_max:
+        service_price_min, service_price_max = service_price_max, service_price_min
+    if service_rating_min > service_rating_max:
+        service_rating_min, service_rating_max = service_rating_max, service_rating_min
     return render(request, 'website/home.html', {
         'services_page': services_page,
+        'services_page_range': services_page.paginator.get_elided_page_range(
+            services_page.number,
+        ),
         'services': services_page.object_list,
         'service_querystring': service_querystring,
         'categories': CATEGORIES,
         'service_query': request.GET.get('q', '').strip(),
         'service_category': request.GET.get('categoria', 'todo').strip().lower(),
         'service_order': request.GET.get('orden', 'nombre').strip().lower(),
+        'service_provider': request.GET.get('prestador', '').strip(),
+        'service_price_min': service_price_min,
+        'service_price_max': service_price_max,
+        'service_rating_min': service_rating_min,
+        'service_rating_max': service_rating_max,
+        'service_providers': Prestador.objects.filter(
+            estado_aprobacion=True,
+            usuario__isnull=False,
+            servicio__isnull=False,
+        ).select_related('usuario').distinct().order_by(
+            'usuario__first_name', 'usuario__last_name', 'pk',
+        ),
         'booking_dates': [
             timezone.localdate() + timedelta(days=offset)
             for offset in range(1, 8)
@@ -713,6 +780,9 @@ def vista_prestador(request):
         'deleting_service': deleting_service,
         'services': services,
         'service_page': provider_services_page,
+        'provider_page_range': provider_services_page.paginator.get_elided_page_range(
+            provider_services_page.number,
+        ),
         'service_querystring': provider_querystring,
         'service_query': request.GET.get('q', '').strip(),
         'service_category': provider_category or 'todo',
@@ -786,12 +856,35 @@ def vista_administrador(request):
         for row in subscription_rows
     )
     liquidation_count = Liquidacion.objects.count()
+    liquidation_query = request.GET.get('q', '').strip()
+    liquidation_provider = request.GET.get('prestador', '').strip()
+    liquidation_queryset = Liquidacion.objects.all()
+    if liquidation_provider.isdigit():
+        liquidation_queryset = liquidation_queryset.filter(
+            servicios__prestador_idprestador_id=int(liquidation_provider),
+        )
+    if liquidation_query:
+        search_filter = (
+            Q(servicios__nombre__icontains=liquidation_query)
+            | Q(servicios__prestador_idprestador__usuario__first_name__icontains=liquidation_query)
+            | Q(servicios__prestador_idprestador__usuario__last_name__icontains=liquidation_query)
+            | Q(servicios__prestador_idprestador__usuario__username__icontains=liquidation_query)
+        )
+        if liquidation_query.isdigit():
+            search_filter |= Q(idliquidacion=int(liquidation_query))
+        liquidation_queryset = liquidation_queryset.filter(search_filter)
+    liquidation_providers = Prestador.objects.filter(
+        servicio__liquidaciones__isnull=False,
+        usuario__isnull=False,
+    ).select_related('usuario').distinct().order_by(
+        'usuario__first_name', 'usuario__last_name', 'pk',
+    )
     liquidations = list(
-        Liquidacion.objects.select_related(
+        liquidation_queryset.select_related(
             'administrador_idadministrador__usuario',
         ).prefetch_related(
             'servicios__prestador_idprestador__usuario',
-        ).order_by('-idliquidacion')
+        ).order_by('-idliquidacion').distinct()
     ) if section == 'liquidaciones' else []
     liquidation_rows = [
         {
@@ -818,6 +911,9 @@ def vista_administrador(request):
         'monthly_subscription_price': _format_clp(MONTHLY_SUBSCRIPTION_PRICE),
         'liquidation_count': liquidation_count,
         'liquidation_rows': liquidation_rows,
+        'liquidation_query': liquidation_query,
+        'liquidation_provider': liquidation_provider,
+        'liquidation_providers': liquidation_providers,
     })
 
 

@@ -11,6 +11,11 @@
       <input name="q" value="{{ service_query }}" placeholder="Busca un servicio, categoría o profesional" aria-label="Buscar servicios">
       <input type="hidden" name="categoria" value="{{ service_category }}">
       <input type="hidden" name="orden" value="{{ service_order }}">
+      <input type="hidden" name="prestador" value="{{ service_provider }}">
+      <input type="hidden" name="precio_min" value="{{ service_price_min }}">
+      <input type="hidden" name="precio_max" value="{{ service_price_max }}">
+      <input type="hidden" name="calificacion_min" value="{{ service_rating_min }}">
+      <input type="hidden" name="calificacion_max" value="{{ service_rating_max }}">
       <button aria-label="Buscar" type="submit">›</button>
     </form>
   </div>
@@ -24,7 +29,7 @@
 </section>
 <nav class="categories" aria-label="Categorías" id="service-categories">
   {% for category in categories %}
-    <a class="{% if service_category == category.0 or not service_category and forloop.first %}active{% endif %}" href="?{% if service_query %}q={{ service_query|urlencode }}&amp;{% endif %}categoria={{ category.0 }}&amp;orden={{ service_order }}#services">{{ category.1 }}</a>
+    <a class="{% if service_category == category.0 or not service_category and forloop.first %}active{% endif %}" href="?{% if service_query %}q={{ service_query|urlencode }}&amp;{% endif %}categoria={{ category.0 }}&amp;orden={{ service_order }}{% if service_provider %}&amp;prestador={{ service_provider }}{% endif %}&amp;precio_min={{ service_price_min }}&amp;precio_max={{ service_price_max }}&amp;calificacion_min={{ service_rating_min }}&amp;calificacion_max={{ service_rating_max }}#services">{{ category.1 }}</a>
   {% endfor %}
 </nav>
 
@@ -34,13 +39,44 @@
     <form method="get" action="{% url 'home' %}">
       <input type="hidden" name="q" value="{{ service_query }}">
       <input type="hidden" name="categoria" value="{{ service_category }}">
-      <label>Ordenar
-        <select name="orden" onchange="this.form.submit()">
-          <option value="nombre" {% if service_order == 'nombre' %}selected{% endif %}>Nombre</option>
-          <option value="precio" {% if service_order == 'precio' %}selected{% endif %}>Precio</option>
-          <option value="duracion" {% if service_order == 'duracion' %}selected{% endif %}>Duración</option>
-        </select>
-      </label>
+      <details class="service-filter-popover">
+        <summary class="service-filter-trigger"><span aria-hidden="true">☷</span> Filtros</summary>
+        <div class="service-filter-panel">
+          <div class="service-filter-heading"><strong>Filtrar resultados</strong><a href="{% url 'home' %}#services">Limpiar</a></div>
+          <div class="service-range-card" data-range-card>
+            <div class="service-range-heading"><span>Rango de precio</span><strong><span data-range-min-label></span> — <span data-range-max-label></span></strong></div>
+            <div class="service-range-control" style="--range-start: 0%; --range-end: 100%" data-range-price>
+              <input aria-label="Precio mínimo" type="range" name="precio_min" min="10000" max="100000" step="1000" value="{{ service_price_min }}" data-range-min>
+              <input aria-label="Precio máximo" type="range" name="precio_max" min="10000" max="100000" step="1000" value="{{ service_price_max }}" data-range-max>
+            </div>
+            <div class="service-range-limits"><span>$10.000</span><span>$100.000</span></div>
+          </div>
+          <div class="service-range-card" data-range-card>
+            <div class="service-range-heading"><span>Rango de calificación</span><strong><span data-range-min-label></span> — <span data-range-max-label></span> ★</strong></div>
+            <div class="service-range-control" style="--range-start: 0%; --range-end: 100%">
+              <input aria-label="Calificación mínima" type="range" name="calificacion_min" min="1" max="5" step="0.1" value="{{ service_rating_min }}" data-range-min data-range-decimal>
+              <input aria-label="Calificación máxima" type="range" name="calificacion_max" min="1" max="5" step="0.1" value="{{ service_rating_max }}" data-range-max data-range-decimal>
+            </div>
+            <div class="service-range-limits"><span>1,0</span><span>5,0</span></div>
+          </div>
+          <label class="service-filter-select">Prestador
+            <select name="prestador">
+              <option value="">Todos los prestadores</option>
+              {% for provider in service_providers %}
+                <option value="{{ provider.pk }}" {% if service_provider == provider.pk|stringformat:"s" %}selected{% endif %}>{{ provider.usuario.get_full_name|default:provider.usuario.username }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="service-filter-select">Ordenar por
+            <select name="orden">
+              <option value="nombre" {% if service_order == 'nombre' %}selected{% endif %}>Nombre</option>
+              <option value="precio" {% if service_order == 'precio' %}selected{% endif %}>Precio</option>
+              <option value="duracion" {% if service_order == 'duracion' %}selected{% endif %}>Duración</option>
+            </select>
+          </label>
+          <button class="service-filter-submit" type="submit">Ver resultados</button>
+        </div>
+      </details>
     </form>
   </div>
   <div class="service-grid">
@@ -58,16 +94,64 @@
   </div>
   {% if services_page.paginator.num_pages > 1 %}
     <nav class="service-pagination" aria-label="Paginación de servicios">
+      <span class="service-pagination-count">Mostrando <strong>{{ services_page.start_index }}–{{ services_page.end_index }}</strong> de {{ services_page.paginator.count }} servicios<span class="service-pagination-sr-only">. Página {{ services_page.number }} de {{ services_page.paginator.num_pages }}.</span></span>
+      <div class="service-pagination-controls">
       {% if services_page.has_previous %}
-        <a href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ services_page.previous_page_number }}#services">Anterior</a>
+        <a class="service-pagination-arrow" href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ services_page.previous_page_number }}#services" aria-label="Página anterior">‹</a>
+      {% else %}
+        <span class="service-pagination-arrow disabled" aria-hidden="true">‹</span>
       {% endif %}
-      <span>Página {{ services_page.number }} de {{ services_page.paginator.num_pages }}</span>
+      {% for page_number in services_page_range %}
+        {% if page_number == services_page.paginator.ELLIPSIS %}
+          <span class="service-pagination-ellipsis" aria-hidden="true">…</span>
+        {% elif page_number == services_page.number %}
+          <span class="service-pagination-page current" aria-current="page">{{ page_number }}</span>
+        {% else %}
+          <a class="service-pagination-page" href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ page_number }}#services" aria-label="Ir a la página {{ page_number }}">{{ page_number }}</a>
+        {% endif %}
+      {% endfor %}
       {% if services_page.has_next %}
-        <a href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ services_page.next_page_number }}#services">Siguiente</a>
+        <a class="service-pagination-arrow" href="?{% if service_querystring %}{{ service_querystring }}&amp;{% endif %}page={{ services_page.next_page_number }}#services" aria-label="Página siguiente">›</a>
+      {% else %}
+        <span class="service-pagination-arrow disabled" aria-hidden="true">›</span>
       {% endif %}
+      </div>
     </nav>
   {% endif %}
 </section>
+
+<script>
+  (() => {
+    const formatPrice = (value) => `$${Number(value).toLocaleString('es-CL')}`;
+    document.querySelectorAll('[data-range-card]').forEach((card) => {
+      const minimum = card.querySelector('[data-range-min]');
+      const maximum = card.querySelector('[data-range-max]');
+      const minimumLabel = card.querySelector('[data-range-min-label]');
+      const maximumLabel = card.querySelector('[data-range-max-label]');
+      const control = card.querySelector('.service-range-control');
+      const decimal = minimum.hasAttribute('data-range-decimal');
+      const format = (value) => decimal
+        ? Number(value).toLocaleString('es-CL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        : formatPrice(value);
+      const update = (changed) => {
+        if (Number(minimum.value) > Number(maximum.value)) {
+          if (changed === minimum) maximum.value = minimum.value;
+          else minimum.value = maximum.value;
+        }
+        minimumLabel.textContent = format(minimum.value);
+        maximumLabel.textContent = format(maximum.value);
+        const span = Number(maximum.max) - Number(minimum.min);
+        const start = ((Number(minimum.value) - Number(minimum.min)) / span) * 100;
+        const end = ((Number(maximum.value) - Number(minimum.min)) / span) * 100;
+        control.style.setProperty('--range-start', `${start}%`);
+        control.style.setProperty('--range-end', `${end}%`);
+      };
+      minimum.addEventListener('input', () => update(minimum));
+      maximum.addEventListener('input', () => update(maximum));
+      update();
+    });
+  })();
+</script>
 
 {% if user.is_authenticated %}
 <div class="booking-backdrop" id="booking-modal" hidden>
@@ -204,7 +288,12 @@
         return;
       }
       modal.querySelector('#payment-status').value = 'success';
-      form.submit();
+      window.showActionConfirmation({
+        title: '¿Confirmas que deseas pagar y reservar?',
+        message: `Se pagará el abono de ${modal.querySelector('.booking-deposit-value').textContent} para confirmar tu reserva. El pago es simulado.`,
+        confirmLabel: 'Sí, pagar y reservar',
+        onConfirm: () => form.submit(),
+      });
     });
     modal.querySelector('.booking-reject').addEventListener('click', () => setStep(4));
     modal.querySelector('.booking-retry').addEventListener('click', () => setStep(3));

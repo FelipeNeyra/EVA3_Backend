@@ -79,8 +79,8 @@
                 <span class="status-pill pending">Revisión pendiente</span>
                 <form method="post" action="{% url 'estado_solicitud' selected_provider.pk %}">
                   {% csrf_token %}
-                  <button class="admin-action-button reject" type="submit" name="estado" value="False">Rechazar</button>
-                  <button class="admin-action-button approve" type="submit" name="estado" value="True">Aprobar profesional</button>
+                  <button class="admin-action-button reject" type="submit" name="estado" value="False" data-confirm-title="¿Confirmas que deseas rechazar esta solicitud?" data-confirm-message="Cambiarás el estado de la postulación de {{ selected_provider.usuario.get_full_name|default:selected_provider.usuario.username }}. El prestador verá esta decisión al ingresar a su panel." data-confirm-label="Sí, rechazar solicitud">Rechazar</button>
+                  <button class="admin-action-button approve" type="submit" name="estado" value="True" data-confirm-title="¿Confirmas que deseas aprobar esta solicitud?" data-confirm-message="Cambiarás el estado de la postulación de {{ selected_provider.usuario.get_full_name|default:selected_provider.usuario.username }}. El prestador verá esta decisión al ingresar a su panel." data-confirm-label="Sí, aprobar solicitud">Aprobar profesional</button>
                 </form>
               {% elif selected_provider.estado_aprobacion %}
                 <span class="status-pill approved">Aprobada</span>
@@ -141,9 +141,9 @@
                   <form class="admin-subscription-form" method="post" action="{% url 'actualizar_suscripcion' row.prestador.pk %}">
                     {% csrf_token %}
                     {% if row.subscription and row.subscription.estado == 'pagada' %}
-                      <button class="admin-action-button reject" type="submit" name="estado" value="pendiente">Marcar pendiente</button>
+                      <button class="admin-action-button reject" type="submit" name="estado" value="pendiente" data-confirm-title="¿Confirmas que deseas marcar este pago como pendiente?" data-confirm-message="Actualizarás el estado de la suscripción de {{ row.prestador.usuario.get_full_name|default:row.prestador.usuario.username }} para el periodo actual." data-confirm-label="Sí, marcar pendiente">Marcar pendiente</button>
                     {% else %}
-                      <button class="admin-action-button approve" type="submit" name="estado" value="pagada">Registrar pago</button>
+                      <button class="admin-action-button approve" type="submit" name="estado" value="pagada" data-confirm-title="¿Confirmas que deseas registrar este pago?" data-confirm-message="Registrarás como pagada la suscripción de {{ row.prestador.usuario.get_full_name|default:row.prestador.usuario.username }} por {{ row.amount_display }}." data-confirm-label="Sí, registrar pago">Registrar pago</button>
                     {% endif %}
                   </form>
                 </td>
@@ -161,6 +161,27 @@
         <h1>Liquidaciones</h1>
         <p>Montos registrados para profesionales y comisiones de la plataforma.</p>
       </section>
+      <form class="admin-liquidation-filters" method="get" action="{% url 'vista_administrador' %}">
+        <input type="hidden" name="section" value="liquidaciones">
+        <details class="admin-liquidation-popover">
+          <summary class="service-filter-trigger"><span aria-hidden="true">☷</span> Filtros</summary>
+          <div class="service-filter-panel">
+            <div class="service-filter-heading"><strong>Filtrar liquidaciones</strong><a href="{% url 'vista_administrador' %}?section=liquidaciones">Limpiar</a></div>
+            <label class="service-filter-select">Buscar
+              <input type="search" name="q" value="{{ liquidation_query }}" placeholder="Servicio, prestador o número">
+            </label>
+            <label class="service-filter-select">Prestador
+              <select name="prestador">
+                <option value="">Todos los prestadores</option>
+                {% for provider in liquidation_providers %}
+                  <option value="{{ provider.pk }}" {% if liquidation_provider == provider.pk|stringformat:"s" %}selected{% endif %}>{{ provider.usuario.get_full_name|default:provider.usuario.username }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <button class="service-filter-submit" type="submit">Ver resultados</button>
+          </div>
+        </details>
+      </form>
       <div class="admin-table-wrap">
         <table class="admin-table">
           <thead><tr><th>N°</th><th>Servicios y profesionales</th><th>Monto bruto</th><th>Comisión</th><th>Neto profesional</th></tr></thead>

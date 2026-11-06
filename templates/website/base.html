@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'website/css/styles.css' %}?v=20261105-provider2">
+  <link rel="stylesheet" href="{% static 'website/css/styles.css' %}?v=20261106-pagination1">
   <style>
     .brand-monogram { width: 48px; height: 48px; object-fit: contain; }
     .brand-wordmark { width: 168px; height: auto; }
@@ -61,6 +61,19 @@
     .booking-confirmed-content p { color: #a28f96; line-height: 1.5; margin: 0 auto 18px; max-width: 390px; }
     .booking-paid { border-radius: 13px; background: #fff; color: #a28f96; padding: 12px; margin-bottom: 20px; }
     .booking-paid strong { color: #38232f; margin-left: 6px; }
+    .action-confirmation-backdrop { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 18px; background: rgba(36, 34, 34, .72); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
+    .action-confirmation-backdrop[hidden] { display: none !important; }
+    .action-confirmation-modal { width: min(100%, 448px); border-radius: 26px; background: #f8f5f1; padding: 32px; color: #38232f; box-shadow: 0 22px 55px rgba(0, 0, 0, .22); }
+    .action-confirmation-icon { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 20px; border-radius: 50%; background: #a5dea8; color: #365136; font-size: 25px; }
+    .action-confirmation-eyebrow { color: #d60768; font-size: 9px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; }
+    .action-confirmation-modal h2 { margin: 12px 0 12px; font: 500 30px/1.18 "Playfair Display", serif; }
+    .action-confirmation-message { margin: 0; color: #93878b; font-size: 13px; line-height: 1.6; }
+    .action-confirmation-message strong { color: #38232f; }
+    .action-confirmation-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 29px; }
+    .action-confirmation-actions button { min-height: 48px; border-radius: 26px; padding: 0 22px; font-size: 13px; }
+    .action-confirmation-cancel { border: 1px solid #ded5d8; background: transparent; color: #5d5055; }
+    .action-confirmation-accept { border: 0; background: #a5dea8; color: #365136; font-weight: 600; }
+    .action-confirmation-actions button:focus-visible { outline: 2px solid #38232f; outline-offset: 3px; }
     @media (max-width: 520px) {
       .quick-booking-backdrop { padding: 12px; }
       .quick-booking-modal { max-height: calc(100vh - 24px); padding: 18px 16px 20px; }
@@ -71,6 +84,10 @@
       .booking-fields label.full { grid-column: auto; }
       .brand-monogram { width: 40px; height: 40px; }
       .brand-wordmark { width: 132px; }
+      .action-confirmation-modal { padding: 26px 22px; border-radius: 22px; }
+      .action-confirmation-modal h2 { font-size: 27px; }
+      .action-confirmation-actions { gap: 8px; }
+      .action-confirmation-actions button { padding: 0 16px; }
     }
   </style>
 </head>
@@ -91,14 +108,14 @@
           <a class="dashboard-booking-link" href="{% url 'home' %}">Ir a la página web</a>
           <form class="inline-form admin-logout" method="post" action="{% url 'logout' %}">
             {% csrf_token %}
-            <button class="nav-button" type="submit">Cerrar sesión</button>
+            <button class="nav-button" type="submit" data-confirm-title="¿Confirmas que deseas cerrar sesión?" data-confirm-message="Tendrás que volver a ingresar para acceder a tu cuenta." data-confirm-label="Sí, cerrar sesión">Cerrar sesión</button>
           </form>
           <a class="admin-close" href="{% url 'home' %}" aria-label="Volver al sitio">×</a>
         {% elif user.is_authenticated and user.perfil_prestador %}
           <a class="provider-role-link" href="{% url 'vista_prestador' %}">Prestador</a>
           <form class="inline-form provider-logout" method="post" action="{% url 'logout' %}">
             {% csrf_token %}
-            <button class="nav-button" type="submit">Cerrar sesión</button>
+            <button class="nav-button" type="submit" data-confirm-title="¿Confirmas que deseas cerrar sesión?" data-confirm-message="Tendrás que volver a ingresar para acceder a tu cuenta." data-confirm-label="Sí, cerrar sesión">Cerrar sesión</button>
           </form>
           <a class="provider-address-link" href="{% url 'datos_usuario' %}" title="Agregar o editar dirección de atención">
             <span aria-hidden="true">⌖</span><span>Agregar dirección de atención</span>
@@ -110,7 +127,7 @@
             <a href="{% url 'datos_usuario' %}">Mi cuenta</a>
             <form class="inline-form" method="post" action="{% url 'logout' %}">
               {% csrf_token %}
-              <button class="nav-button" type="submit">Salir</button>
+              <button class="nav-button" type="submit" data-confirm-title="¿Confirmas que deseas cerrar sesión?" data-confirm-message="Tendrás que volver a ingresar para acceder a tu cuenta." data-confirm-label="Sí, cerrar sesión">Salir</button>
             </form>
         {% else %}
           <button class="nav-button quick-booking-trigger" type="button" aria-controls="quick-booking-modal" aria-expanded="false">Agendamiento rápido</button>
@@ -164,6 +181,83 @@
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  <div class="action-confirmation-backdrop" id="action-confirmation" hidden>
+    <section class="action-confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="action-confirmation-title" aria-describedby="action-confirmation-message">
+      <span class="action-confirmation-icon" aria-hidden="true">✓</span>
+      <span class="action-confirmation-eyebrow">Segunda confirmación</span>
+      <h2 id="action-confirmation-title"></h2>
+      <p class="action-confirmation-message" id="action-confirmation-message"></p>
+      <div class="action-confirmation-actions">
+        <button class="action-confirmation-cancel" type="button">Cancelar</button>
+        <button class="action-confirmation-accept" type="button"></button>
+      </div>
+    </section>
+  </div>
+  <script>
+    (() => {
+      const dialog = document.getElementById('action-confirmation');
+      if (!dialog) return;
+
+      const title = dialog.querySelector('#action-confirmation-title');
+      const message = dialog.querySelector('#action-confirmation-message');
+      const cancel = dialog.querySelector('.action-confirmation-cancel');
+      const accept = dialog.querySelector('.action-confirmation-accept');
+      let onConfirm = null;
+      let previousFocus = null;
+      let bypassNextSubmit = false;
+
+      const closeDialog = () => {
+        dialog.hidden = true;
+        document.body.classList.remove('modal-open');
+        if (previousFocus) previousFocus.focus();
+        previousFocus = null;
+        onConfirm = null;
+      };
+
+      window.showActionConfirmation = (options) => {
+        title.textContent = options.title;
+        message.textContent = options.message;
+        accept.textContent = options.confirmLabel;
+        onConfirm = options.onConfirm;
+        previousFocus = document.activeElement;
+        dialog.hidden = false;
+        document.body.classList.add('modal-open');
+        cancel.focus();
+      };
+
+      document.addEventListener('submit', (event) => {
+        if (bypassNextSubmit) {
+          bypassNextSubmit = false;
+          return;
+        }
+        const submitter = event.submitter;
+        if (!submitter || !submitter.dataset.confirmTitle) return;
+        event.preventDefault();
+        window.showActionConfirmation({
+          title: submitter.dataset.confirmTitle,
+          message: submitter.dataset.confirmMessage || '',
+          confirmLabel: submitter.dataset.confirmLabel || 'Confirmar',
+          onConfirm: () => {
+            bypassNextSubmit = true;
+            submitter.form.requestSubmit(submitter);
+          },
+        });
+      });
+
+      cancel.addEventListener('click', closeDialog);
+      accept.addEventListener('click', () => {
+        const confirm = onConfirm;
+        closeDialog();
+        if (confirm) confirm();
+      });
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) closeDialog();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !dialog.hidden) closeDialog();
+      });
+    })();
+  </script>
   <script>
     (() => {
       const modal = document.getElementById('quick-booking-modal');
