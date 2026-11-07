@@ -46,10 +46,10 @@
           <div class="service-range-card" data-range-card>
             <div class="service-range-heading"><span>Rango de precio</span><strong><span data-range-min-label></span> — <span data-range-max-label></span></strong></div>
             <div class="service-range-control" style="--range-start: 0%; --range-end: 100%" data-range-price>
-              <input aria-label="Precio mínimo" type="range" name="precio_min" min="10000" max="100000" step="1000" value="{{ service_price_min }}" data-range-min>
-              <input aria-label="Precio máximo" type="range" name="precio_max" min="10000" max="100000" step="1000" value="{{ service_price_max }}" data-range-max>
+              <input aria-label="Precio mínimo" type="range" name="precio_min" min="1000" max="100000" step="1000" value="{{ service_price_min }}" data-range-min>
+              <input aria-label="Precio máximo" type="range" name="precio_max" min="1000" max="100000" step="1000" value="{{ service_price_max }}" data-range-max>
             </div>
-            <div class="service-range-limits"><span>$10.000</span><span>$100.000</span></div>
+            <div class="service-range-limits"><span>$1.000</span><span>$100.000</span></div>
           </div>
           <div class="service-range-card" data-range-card>
             <div class="service-range-heading"><span>Rango de calificación</span><strong><span data-range-min-label></span> — <span data-range-max-label></span> ★</strong></div>
@@ -90,6 +90,8 @@
           <div class="card-bottom"><span>Desde <strong>{{ service.price }}</strong></span>{% if service.id %}<a href="{% url 'detalle_servicio' service.id %}">Ver detalles</a>{% if user.is_authenticated %}<button class="booking-trigger" type="button" data-service-id="{{ service.id }}" data-service-name="{{ service.name }}" data-service-provider="{{ service.provider }}" data-service-price="{{ service.price }}" data-service-image="{{ service.image }}">Reservar</button>{% else %}<a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Inicia sesión</a>{% endif %}{% else %}<span class="service-unavailable">Próximamente</span>{% endif %}</div>
         </div>
       </article>
+    {% empty %}
+      <p class="service-empty-state">No hay registros disponibles</p>
     {% endfor %}
   </div>
   {% if services_page.paginator.num_pages > 1 %}

@@ -335,6 +335,25 @@ class ProviderDashboardTests(TestCase):
         self.assertContains(response, 'categoria=faciales')
         self.assertContains(response, 'orden=precio')
 
+    def test_home_shows_empty_message_when_no_service_matches(self):
+        response = self.client.get(
+            reverse('home'),
+            {'q': 'servicio inexistente'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'No hay registros disponibles')
+        self.assertNotContains(response, 'Próximamente')
+
+    def test_home_includes_services_below_ten_thousand_pesos(self):
+        self.service.precio_base = 5000
+        self.service.save(update_fields=['precio_base'])
+
+        response = self.client.get(reverse('home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Corte y brushing')
+
     def test_home_catalog_can_be_filtered_by_provider(self):
         other_user = User.objects.create_user(
             username='other-catalog-provider',

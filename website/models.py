@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 
+# ---------- ACTORES PRINCIPALES ----------
 class Cliente(models.Model):
     idcliente = models.AutoField(db_column='idCliente', primary_key=True)
     nombre = models.CharField(max_length=45, null=True, blank=True)
@@ -124,6 +125,7 @@ class Administrador(models.Model):
         db_table = 'administrador'
 
 
+# ---------- RESERVAS Y SERVICIOS ----------
 class Reserva(models.Model):
     idreserva = models.IntegerField(db_column='idReserva', primary_key=True)
     fecha = models.DateField()
@@ -170,7 +172,9 @@ class Servicio(models.Model):
     prestador_idprestador = models.ForeignKey(
         Prestador,
         on_delete=models.CASCADE,
-        db_column='prestador_idPrestador')
+        db_column='prestador_idPrestador',
+        related_name='servicios',
+    )
     liquidaciones = models.ManyToManyField(
         'Liquidacion',
         through='ServicioHasLiquidacion',
@@ -201,7 +205,7 @@ class ReservaHasServicio(models.Model):
                 name='unique_reserva_servicio')
         ]
 
-
+# ---------- LIQUIDACIONES ----------
 class Liquidacion(models.Model):
     idliquidacion = models.IntegerField(
         db_column='idLiquidacion',
@@ -240,7 +244,7 @@ class ServicioHasLiquidacion(models.Model):
                 name='unique_servicio_liquidacion')
         ]
 
-
+# ---------- PAGOS ----------
 class Pago(models.Model):
     idpago = models.IntegerField(db_column='idPago', primary_key=True)
     monto_total = models.IntegerField()

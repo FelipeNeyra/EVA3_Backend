@@ -25,7 +25,6 @@ from website.forms import CorreoAuthenticationForm
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name='home'),
-    path('servicios/<int:pk>/', vistas.detalle_servicio, name='detalle_servicio'),
     path('reservas/', vistas.reservas, name='reservas'),
     path('favoritos/', vistas.favoritos, name='favoritos'),
 
@@ -52,6 +51,7 @@ urlpatterns = [
     #Sección de Prestadores
     path('home/solicitudes', vistas.vista_solicitud_prestadores, name='solicitud_prestador'),
     path('prestador/', vistas.vista_prestador, name='vista_prestador'),
+    path('servicios/<int:pk>/', vistas.detalle_servicio, name='detalle_servicio'),
 
      #Sección de Administración
     path('administración/', vistas.vista_administrador, name='vista_administrador'),

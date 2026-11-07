@@ -10,6 +10,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
+from django.db.models import Prefetch
 from .forms import (
     EditarUsuarioForm,
     RegistroForm,
@@ -74,7 +75,7 @@ CATEGORIES = [
 
 MONTHLY_SUBSCRIPTION_PRICE = 5000
 
-
+# --- VISTA DE LOGIN ---
 class BeautyGoLoginView(LoginView):
     def get_success_url(self):
         user = self.request.user
@@ -82,7 +83,7 @@ class BeautyGoLoginView(LoginView):
             return self.get_redirect_url() or reverse_lazy('vista_administrador')
         return super().get_success_url()
 
-
+# --- VERIFICACIÓN DE USUARIO ADMIN ---
 def admin_required(view_func):
     @login_required
     @wraps(view_func)
@@ -115,8 +116,8 @@ def _filtered_services(request):
     category = request.GET.get('categoria', '').strip().lower()
     ordering = request.GET.get('orden', 'nombre').strip().lower()
     provider_id = request.GET.get('prestador', '').strip()
-    price_min = _query_range_value(request.GET.get('precio_min'), 10000, 10000, 100000)
-    price_max = _query_range_value(request.GET.get('precio_max'), 100000, 10000, 100000)
+    price_min = _query_range_value(request.GET.get('precio_min'), 1000, 1000, 100000)
+    price_max = _query_range_value(request.GET.get('precio_max'), 100000, 1000, 100000)
     rating_min = _query_range_value(request.GET.get('calificacion_min'), 1, 1, 5)
     rating_max = _query_range_value(request.GET.get('calificacion_max'), 5, 1, 5)
     if price_min > price_max:
@@ -157,17 +158,6 @@ def _filtered_services(request):
         }
         for index, service in enumerate(database_services)
     ]
-    if not services and not provider_id:
-        services = [
-            {
-                **item,
-                'id': None,
-                'category_keys': _catalog_category_keys(item['category']),
-                'price_value': int(item['price'].replace('$', '').replace('.', '')),
-                'rating_value': float(item['rating'].split()[0]),
-            }
-            for item in SERVICE_CATALOG
-        ]
     if category and category != 'todo':
         services = [item for item in services if category in item['category_keys']]
     if query:
@@ -264,10 +254,10 @@ def home(request):
         request,
     )
     service_price_min = _query_range_value(
-        request.GET.get('precio_min'), 10000, 10000, 100000,
+        request.GET.get('precio_min'), 1000, 1000, 100000,
     )
     service_price_max = _query_range_value(
-        request.GET.get('precio_max'), 100000, 10000, 100000,
+        request.GET.get('precio_max'), 100000, 1000, 100000,
     )
     service_rating_min = _query_range_value(
         request.GET.get('calificacion_min'), 1, 1, 5,
@@ -298,7 +288,7 @@ def home(request):
         'service_providers': Prestador.objects.filter(
             estado_aprobacion=True,
             usuario__isnull=False,
-            servicio__isnull=False,
+            servicios__isnull=False,
         ).select_related('usuario').distinct().order_by(
             'usuario__first_name', 'usuario__last_name', 'pk',
         ),
@@ -310,7 +300,6 @@ def home(request):
         'confirmed_booking': confirmed_booking,
         'confirmed_payment': confirmed_payment,
     })
-
 
 def detalle_servicio(request, pk):
     service = get_object_or_404(
@@ -414,13 +403,26 @@ def reservas(request):
     cliente = getattr(request.user, 'perfil_cliente', None)
     user_reservas = Reserva.objects.filter(
         cliente_idcliente=cliente
-    ).prefetch_related('servicios').order_by('-fecha', '-hora_bloque') if cliente else Reserva.objects.none()
+    ).prefetch_related(
+        Prefetch(
+            'servicios',
+            queryset=Servicio.objects.select_related(
+                'prestador_idprestador__usuario',
+            ),
+            to_attr='servicios_cargados',
+        ),
+        Prefetch(
+            'pago_set',
+            queryset=Pago.objects.order_by('idpago'),
+            to_attr='pagos_cargados',
+        ),
+    ).order_by('-fecha', '-hora_bloque') if cliente else Reserva.objects.none()
     reservation_cards = []
     for index, reserva in enumerate(user_reservas):
-        service = reserva.servicios.select_related(
-            'prestador_idprestador__usuario'
-        ).first()
-        payment = Pago.objects.filter(reserva_idreserva=reserva).first()
+        services = reserva.servicios_cargados
+        service = services[0] if services else None
+        payments = reserva.pagos_cargados
+        payment = payments[0] if payments else None
         if service:
             provider = service.prestador_idprestador
             reservation_cards.append({
@@ -567,7 +569,7 @@ def vista_solicitud_prestadores(request):
         },
     )
 
-
+#Vista de Prestadores (Tras Iniciar Sesión)
 @login_required
 def vista_prestador(request):
     prestador = getattr(request.user, 'perfil_prestador', None)
@@ -704,7 +706,9 @@ def vista_prestador(request):
             return redirect('vista_prestador')
 
     provider_services = list(
-        Servicio.objects.filter(prestador_idprestador=prestador)
+        Servicio.objects.select_related(
+            'prestador_idprestador__usuario',
+        ).filter(prestador_idprestador=prestador)
         .order_by('nombre')
     )
     provider_query = request.GET.get('q', '').strip().lower()
@@ -746,12 +750,20 @@ def vista_prestador(request):
     reservation_list = list(
         Reserva.objects.filter(
             servicios__prestador_idprestador=prestador,
-        ).distinct().select_related('cliente_idcliente').prefetch_related('servicios')
+        ).distinct().select_related('cliente_idcliente').prefetch_related(
+            Prefetch(
+                'servicios',
+                queryset=Servicio.objects.select_related(
+                    'prestador_idprestador__usuario',
+                ),
+                to_attr='servicios_cargados',
+            ),
+        )
         .order_by('-fecha', '-hora_bloque')
     )
     for reservation in reservation_list:
         reservation.provider_services = [
-            service for service in reservation.servicios.all()
+            service for service in reservation.servicios_cargados
             if service.prestador_idprestador_id == prestador.pk
         ]
     current_period = timezone.localdate().replace(day=1)
@@ -818,7 +830,14 @@ def vista_administrador(request):
     if section not in {'solicitudes', 'suscripciones', 'liquidaciones'}:
         section = 'solicitudes'
 
-    provider_list = list(providers.order_by('usuario__date_joined', 'pk'))
+    provider_list = list(
+        providers.prefetch_related(
+            Prefetch(
+                'servicios',
+                queryset=Servicio.objects.order_by('nombre'),
+            ),
+        ).order_by('usuario__date_joined', 'pk')
+    )
     selected_provider = None
     requested_provider_id = request.GET.get('prestador')
     if requested_provider_id:
@@ -828,8 +847,12 @@ def vista_administrador(request):
             None,
         )
     if selected_provider is None:
-        selected_provider = pending_requests.first() or (
-            provider_list[0] if provider_list else None
+        selected_provider = next(
+            (
+                provider for provider in provider_list
+                if provider.estado_aprobacion is None
+            ),
+            provider_list[0] if provider_list else None,
         )
 
     current_period = timezone.localdate().replace(day=1)
@@ -874,7 +897,7 @@ def vista_administrador(request):
             search_filter |= Q(idliquidacion=int(liquidation_query))
         liquidation_queryset = liquidation_queryset.filter(search_filter)
     liquidation_providers = Prestador.objects.filter(
-        servicio__liquidaciones__isnull=False,
+    servicios__liquidaciones__isnull=False,
         usuario__isnull=False,
     ).select_related('usuario').distinct().order_by(
         'usuario__first_name', 'usuario__last_name', 'pk',

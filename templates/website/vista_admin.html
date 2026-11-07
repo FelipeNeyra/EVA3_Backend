@@ -101,7 +101,7 @@
 
           <section class="admin-services-card">
             <span class="admin-sidebar-label">Servicios ofrecidos</span>
-            {% for service in selected_provider.servicio_set.all %}
+            {% for service in selected_provider.servicios.all %}
               <p>{{ service.nombre }} · {{ service.duracion }} min · ${{ service.precio_base }}</p>
             {% empty %}
               <p>Aún no hay servicios asociados a este profesional.</p>
