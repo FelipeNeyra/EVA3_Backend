@@ -209,7 +209,7 @@ def _paginated_services(services, request, per_page=6):
 def _service_category_keys(service):
     value = unicode_normalize(
         'NFKD',
-        f'{service.categoria} {service.prestador_idprestador.especialidad} '
+        f'{service.categoria}'
         f'{service.nombre} {service.descripcion}',
     ).encode('ascii', 'ignore').decode().lower()
     terms = {

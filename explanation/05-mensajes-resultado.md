@@ -11,19 +11,19 @@ estado de sesión.
 Las vistas importan `django.contrib.messages` y publican mensajes antes de
 redirigir. Algunos ejemplos son:
 
-| Operación | Resultado comunicado |
-|---|---|
-| Reserva incompleta, correo/teléfono inválido o fecha inválida | `messages.error`. |
-| Pago simulado rechazado | `messages.error`; no se crea la reserva. |
-| Registro de solicitud de prestador | `messages.success`. |
-| Solicitud ya pendiente o rechazada | `messages.info`. |
-| Servicio guardado | `messages.success`. |
-| Servicio eliminado | `messages.success`. |
-| Estado de reserva actualizado | `messages.success`. |
-| Suscripción ya pagada | `messages.info`. |
-| Pago de suscripción registrado | `messages.success`. |
-| Acción o estado no válido | `messages.error`. |
-| Aprobación/rechazo administrativa | `messages.success` o `messages.error`. |
+| Operación                                                       | Resultado comunicado                       |
+| ---------------------------------------------------------------- | ------------------------------------------ |
+| Reserva incompleta, correo/teléfono inválido o fecha inválida | `messages.error`.                        |
+| Pago simulado rechazado                                          | `messages.error`; no se crea la reserva. |
+| Registro de solicitud de prestador                               | `messages.success`.                      |
+| Solicitud ya pendiente o rechazada                               | `messages.info`.                         |
+| Servicio guardado                                                | `messages.success`.                      |
+| Servicio eliminado                                               | `messages.success`.                      |
+| Estado de reserva actualizado                                    | `messages.success`.                      |
+| Suscripción ya pagada                                           | `messages.info`.                         |
+| Pago de suscripción registrado                                  | `messages.success`.                      |
+| Acción o estado no válido                                      | `messages.error`.                        |
+| Aprobación/rechazo administrativa                               | `messages.success` o `messages.error`. |
 
 Los formularios inválidos conservan el formulario y sus errores para que el
 usuario corrija los datos. En el flujo de reserva, los errores redirigen a
